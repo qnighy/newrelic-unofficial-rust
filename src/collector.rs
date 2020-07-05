@@ -16,6 +16,8 @@ struct PreconnectRequest {
 pub(crate) fn connect_attempt(license: &str) -> anyhow::Result<()> {
     let resp: PreconnectReply = collector_request_internal(Request {
         method: "preconnect",
+        // TODO: config.host
+        // TODO: preconnectRegionLicenseRegex (collector.xxxx.nr-data.net)
         host: "collector.newrelic.com",
         run_id: None,
         max_payload_size: MAX_PAYLOAD_SIZE,
