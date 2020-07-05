@@ -10,7 +10,7 @@ struct PreconnectRequest {
     high_security: bool,
 }
 
-pub(crate) fn connect_attempt(license: &str) {
+pub(crate) fn connect_attempt(license: &str) -> anyhow::Result<()> {
     let compressed = {
         let mut stream = GzEncoder::new(Vec::<u8>::new(), Compression::default());
         serde_json::to_writer(
@@ -34,10 +34,11 @@ pub(crate) fn connect_attempt(license: &str) {
         .header("User-Agent", "NewRelic-Rust-Agent-Unofficial/0.1.0")
         .header("Content-Encoding", "gzip")
         .body(Bytes(compressed))
-        .send();
+        .send()?;
 
-    let resp = resp.unwrap();
     eprintln!("resp = {:#?}", resp);
-    let body = resp.text().unwrap();
+    let body = resp.text()?;
     eprintln!("body = {:?}", body);
+
+    Ok(())
 }

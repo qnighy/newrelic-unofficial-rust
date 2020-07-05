@@ -1,6 +1,3 @@
-use attohttpc::body::Bytes;
-use flate2::write::GzEncoder;
-use flate2::Compression;
 use std::fmt;
 use std::sync::{Arc, Weak};
 
@@ -13,7 +10,7 @@ pub struct Daemon {
 
 impl Daemon {
     pub fn new(name: &str, license: &str) -> Self {
-        crate::collector::connect_attempt(license);
+        crate::collector::connect_attempt(license).unwrap();
 
         // TODO: validation
         Daemon {
