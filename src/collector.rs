@@ -4,8 +4,25 @@ use flate2::Compression;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use thiserror::Error;
 
 const MAX_PAYLOAD_SIZE: usize = 1000 * 1000;
+
+#[derive(Error, Debug)]
+pub(crate) enum RpmError {
+    #[error("HTTP Error: {0}")]
+    HttpError(#[from] attohttpc::Error),
+    #[error(
+        "Payload size for {method} too large: {compressed_len} greater than {max_payload_size}"
+    )]
+    PayloadTooLarge {
+        method: String,
+        compressed_len: usize,
+        max_payload_size: usize,
+    },
+    #[error("response code: {status}: {body}")]
+    StatusError { status: u16, body: String },
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ConnectRequest {
@@ -146,7 +163,7 @@ struct Request<'a, T> {
 
 fn collector_request_internal<T: Serialize, U: DeserializeOwned>(
     req: Request<'_, T>,
-) -> anyhow::Result<U> {
+) -> Result<U, RpmError> {
     let compressed = {
         let mut stream = GzEncoder::new(Vec::<u8>::new(), Compression::default());
         serde_json::to_writer(
@@ -159,13 +176,13 @@ fn collector_request_internal<T: Serialize, U: DeserializeOwned>(
         .unwrap();
         stream.finish().unwrap()
     };
-    anyhow::ensure!(
-        compressed.len() < req.max_payload_size,
-        "Payload size for {} too large: {} greater than {}",
-        req.method,
-        compressed.len(),
-        req.max_payload_size
-    );
+    if compressed.len() > req.max_payload_size {
+        return Err(RpmError::PayloadTooLarge {
+            method: req.method.to_owned(),
+            compressed_len: compressed.len(),
+            max_payload_size: req.max_payload_size,
+        });
+    }
 
     let url = format!("https://{}/agent_listener/invoke_raw_method", req.host);
     let resp = attohttpc::post(url)
@@ -180,13 +197,14 @@ fn collector_request_internal<T: Serialize, U: DeserializeOwned>(
         .body(Bytes(compressed))
         .send()?;
 
-    anyhow::ensure!(
-        [200, 202].contains(&resp.status().as_u16()),
-        "response code: {}: {}",
-        resp.status().as_u16(),
-        resp.text()
-            .unwrap_or_else(|e| format!("<body failed: {}>", e)),
-    );
+    if ![200, 202].contains(&resp.status().as_u16()) {
+        return Err(RpmError::StatusError {
+            status: resp.status().as_u16(),
+            body: resp
+                .text()
+                .unwrap_or_else(|e| format!("<body failed: {}>", e)),
+        });
+    }
 
     Ok(resp.json::<ResponseContainer<U>>()?.return_value)
 }
