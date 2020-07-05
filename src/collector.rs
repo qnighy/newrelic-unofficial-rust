@@ -6,7 +6,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;
 
+const DEFAULT_REPORT_PERIOD_MS: u32 = 60 * 1000;
 const MAX_PAYLOAD_SIZE: usize = 1000 * 1000;
+const MAX_CUSTOM_EVENTS: u32 = 10 * 1000;
+const MAX_TXN_EVENTS: u32 = 10 * 1000;
+const MAX_ERROR_EVENTS: u32 = 100;
 
 #[derive(Error, Debug)]
 pub(crate) enum RpmError {
@@ -32,7 +36,7 @@ struct ConnectRequest {
     host: String,
     #[serde(default, skip_serializing_if = "String::is_empty")]
     display_host: String,
-    // settings: serde_json::Value,
+    settings: Settings,
     app_name: Vec<String>,
     high_security: bool,
     labels: Vec<Label>,
@@ -43,6 +47,12 @@ struct ConnectRequest {
     // security_policies: Option<SecurityPolicies>,
     metadata: HashMap<String, String>,
     event_harvest_config: EventHarvestConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Settings {
+    #[serde(rename = "AppName")]
+    app_name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -71,24 +81,24 @@ struct UtilizationData {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct EventHarvestConfig {
-    #[serde(default, skip_serializing_if = "i32_is_zero")]
-    report_period_ms: i32,
+    #[serde(default, skip_serializing_if = "u32_is_zero")]
+    report_period_ms: u32,
     harvest_limits: HarvestLimits,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct HarvestLimits {
-    // #[serde(default, skip_serializing_if="Option::is_none")]
-// analytic_event_data: Option<u32>,
-// #[serde(default, skip_serializing_if="Option::is_none")]
-// custom_event_data: Option<u32>,
-// #[serde(default, skip_serializing_if="Option::is_none")]
-// error_event_data: Option<u32>,
-// #[serde(default, skip_serializing_if="Option::is_none")]
-// span_event_data: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    analytic_event_data: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    custom_event_data: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    error_event_data: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    span_event_data: Option<u32>,
 }
 
-fn i32_is_zero(x: &i32) -> bool {
+fn u32_is_zero(x: &u32) -> bool {
     *x == 0
 }
 
@@ -122,11 +132,14 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<()> {
         max_payload_size: MAX_PAYLOAD_SIZE,
         license: license,
         data: &vec![ConnectRequest {
-            pid: 1,                               // TODO
+            pid: std::process::id(),
             language: "c".to_owned(),             // TODO
             agent_version: "0.1.0".to_owned(),    // TODO
             host: "localhost".to_owned(),         // TODO
             display_host: "localhost".to_owned(), // TODO
+            settings: Settings {
+                app_name: name.to_owned(),
+            },
             app_name: name.split(";").map(|s| s.to_owned()).collect(),
             high_security: false,
             labels: vec![],
@@ -140,8 +153,13 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<()> {
             },
             metadata: HashMap::new(),
             event_harvest_config: EventHarvestConfig {
-                report_period_ms: 0,
-                harvest_limits: HarvestLimits {},
+                report_period_ms: DEFAULT_REPORT_PERIOD_MS,
+                harvest_limits: HarvestLimits {
+                    analytic_event_data: Some(MAX_TXN_EVENTS),
+                    custom_event_data: Some(MAX_CUSTOM_EVENTS),
+                    error_event_data: Some(MAX_ERROR_EVENTS),
+                    span_event_data: None,
+                },
             },
         }],
     })?;
