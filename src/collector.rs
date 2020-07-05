@@ -3,8 +3,77 @@ use flate2::write::GzEncoder;
 use flate2::Compression;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 const MAX_PAYLOAD_SIZE: usize = 1000 * 1000;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ConnectRequest {
+    pid: u32,
+    language: String,
+    agent_version: String,
+    host: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    display_host: String,
+    // settings: serde_json::Value,
+    app_name: Vec<String>,
+    high_security: bool,
+    labels: Vec<Label>,
+    environment: Vec<(String, serde_json::Value)>,
+    identifier: String,
+    utilization: UtilizationData,
+    // #[serde(default, skip_serializing_if="Option::is_none")]
+    // security_policies: Option<SecurityPolicies>,
+    metadata: HashMap<String, String>,
+    event_harvest_config: EventHarvestConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Label {
+    label_type: String,
+    label_value: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct UtilizationData {
+    metadata_version: i32,
+    logical_processors: Option<i32>,
+    total_ram_mib: Option<u64>,
+    hostname: String,
+    // #[serde(default, skip_serializing_if = "String::is_empty")]
+    // full_hostname: String,
+    // #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    // ip_address: Vec<String>,
+    // #[serde(default, skip_serializing_if = "String::is_empty")]
+    // boot_id: String,
+    // #[serde(default, skip_serializing_if = "Option::is_none")]
+    // config: Option<ConfigOverride>,
+    // #[serde(default, skip_serializing_if = "Option::is_none")]
+    // vendors: Option<Vendors>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct EventHarvestConfig {
+    #[serde(default, skip_serializing_if = "i32_is_zero")]
+    report_period_ms: i32,
+    harvest_limits: HarvestLimits,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct HarvestLimits {
+    // #[serde(default, skip_serializing_if="Option::is_none")]
+// analytic_event_data: Option<u32>,
+// #[serde(default, skip_serializing_if="Option::is_none")]
+// custom_event_data: Option<u32>,
+// #[serde(default, skip_serializing_if="Option::is_none")]
+// error_event_data: Option<u32>,
+// #[serde(default, skip_serializing_if="Option::is_none")]
+// span_event_data: Option<u32>,
+}
+
+fn i32_is_zero(x: &i32) -> bool {
+    *x == 0
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct PreconnectRequest {
@@ -13,7 +82,7 @@ struct PreconnectRequest {
     high_security: bool,
 }
 
-pub(crate) fn connect_attempt(license: &str) -> anyhow::Result<()> {
+pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<()> {
     let resp: PreconnectReply = collector_request_internal(Request {
         method: "preconnect",
         // TODO: config.host
@@ -25,6 +94,38 @@ pub(crate) fn connect_attempt(license: &str) -> anyhow::Result<()> {
         data: &vec![PreconnectRequest {
             security_policies_token: "".to_owned(),
             high_security: false,
+        }],
+    })?;
+    eprintln!("resp = {:?}", resp);
+
+    let resp: serde_json::Value = collector_request_internal(Request {
+        method: "connect",
+        host: &resp.redirect_host,
+        run_id: None,
+        max_payload_size: MAX_PAYLOAD_SIZE,
+        license: license,
+        data: &vec![ConnectRequest {
+            pid: 1,                               // TODO
+            language: "c".to_owned(),             // TODO
+            agent_version: "0.1.0".to_owned(),    // TODO
+            host: "localhost".to_owned(),         // TODO
+            display_host: "localhost".to_owned(), // TODO
+            app_name: name.split(";").map(|s| s.to_owned()).collect(),
+            high_security: false,
+            labels: vec![],
+            environment: vec![],
+            identifier: name.to_owned(),
+            utilization: UtilizationData {
+                metadata_version: 5,
+                logical_processors: None,
+                total_ram_mib: None,
+                hostname: "localhost".to_owned(),
+            },
+            metadata: HashMap::new(),
+            event_harvest_config: EventHarvestConfig {
+                report_period_ms: 0,
+                harvest_limits: HarvestLimits {},
+            },
         }],
     })?;
     eprintln!("resp = {:?}", resp);
@@ -70,7 +171,7 @@ fn collector_request_internal<T: Serialize, U: DeserializeOwned>(
     let resp = attohttpc::post(url)
         .param("marshal_format", "json")
         .param("protocol_version", "17")
-        .param("method", "preconnect")
+        .param("method", req.method)
         .param("license_key", req.license)
         .header("Accept-Encoding", "identity, deflate")
         .header("Content-Type", "application/octet-stream")
@@ -81,8 +182,10 @@ fn collector_request_internal<T: Serialize, U: DeserializeOwned>(
 
     anyhow::ensure!(
         [200, 202].contains(&resp.status().as_u16()),
-        "response code: {}",
+        "response code: {}: {}",
         resp.status().as_u16(),
+        resp.text()
+            .unwrap_or_else(|e| format!("<body failed: {}>", e)),
     );
 
     Ok(resp.json::<ResponseContainer<U>>()?.return_value)

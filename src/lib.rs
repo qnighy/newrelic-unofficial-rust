@@ -10,7 +10,7 @@ pub struct Daemon {
 
 impl Daemon {
     pub fn new(name: &str, license: &str) -> Self {
-        crate::collector::connect_attempt(license).unwrap();
+        crate::collector::connect_attempt(name, license).unwrap();
 
         // TODO: validation
         Daemon {
