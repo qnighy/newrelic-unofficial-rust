@@ -1,6 +1,7 @@
 use attohttpc::body::Bytes;
 use flate2::write::GzEncoder;
 use flate2::Compression;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
 const MAX_PAYLOAD_SIZE: usize = 1000 * 1000;
@@ -13,7 +14,7 @@ struct PreconnectRequest {
 }
 
 pub(crate) fn connect_attempt(license: &str) -> anyhow::Result<()> {
-    collector_request_internal(Request {
+    let resp: PreconnectReply = collector_request_internal(Request {
         method: "preconnect",
         host: "collector.newrelic.com",
         run_id: None,
@@ -24,6 +25,7 @@ pub(crate) fn connect_attempt(license: &str) -> anyhow::Result<()> {
             high_security: false,
         }],
     })?;
+    eprintln!("resp = {:?}", resp);
 
     Ok(())
 }
@@ -39,7 +41,9 @@ struct Request<'a, T> {
     data: &'a T,
 }
 
-fn collector_request_internal<T: Serialize>(req: Request<'_, T>) -> anyhow::Result<()> {
+fn collector_request_internal<T: Serialize, U: DeserializeOwned>(
+    req: Request<'_, T>,
+) -> anyhow::Result<U> {
     let compressed = {
         let mut stream = GzEncoder::new(Vec::<u8>::new(), Compression::default());
         serde_json::to_writer(
@@ -78,7 +82,17 @@ fn collector_request_internal<T: Serialize>(req: Request<'_, T>) -> anyhow::Resu
         "response code: {}",
         resp.status().as_u16(),
     );
-    eprintln!("resp = {:?}", resp);
 
-    Ok(())
+    Ok(resp.json::<ResponseContainer<U>>()?.return_value)
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct ResponseContainer<T> {
+    return_value: T,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct PreconnectReply {
+    redirect_host: String,
+    // security_policies: SecurityPolicies,
 }
