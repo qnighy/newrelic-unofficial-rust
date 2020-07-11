@@ -3,6 +3,7 @@ use std::sync::{Arc, Weak};
 use std::thread::{self, JoinHandle};
 
 mod collector;
+mod connect_reply;
 
 #[derive(Debug)]
 pub struct Daemon {
