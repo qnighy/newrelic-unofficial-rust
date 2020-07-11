@@ -104,6 +104,121 @@ fn u32_is_zero(x: &u32) -> bool {
     *x == 0
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(transparent)]
+struct AgentRunId(String);
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ConnectReply {
+    agent_run_id: AgentRunId,
+    request_headers_map: HashMap<String, String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    max_payload_size_in_bytes: Option<usize>,
+    entity_guid: String,
+
+    // Transaction Name Modifiers
+    // transaction_segment_terms: SegmentRules,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    transaction_name_rules: Vec<MetricRule>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    url_rules: Vec<MetricRule>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    metric_name_rules: Vec<MetricRule>,
+
+    // Cross Process
+    encoding_key: String,
+    cross_process_id: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    trusted_account_set: Vec<i32>,
+
+    // Settings
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    web_transactions_apdex: HashMap<String, f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    apdex_t: Option<f64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    collect_analytics_events: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    collect_custom_events: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    collect_traces: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    collect_errors: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    collect_error_events: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    collect_span_events: Option<bool>,
+
+    // RUM
+    js_agent_loader: String,
+    beacon: String,
+    browser_key: String,
+    application_id: String,
+    error_beacon: String,
+    js_agent_file: String,
+
+    messages: Vec<Message>,
+
+    // BetterCAT/Distributed Tracing
+    account_id: String,
+    trusted_account_key: String,
+    primary_application_id: String,
+    sampling_target: u64,
+    sampling_target_period_in_seconds: i32,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    agent_config: Option<ServerSideConfig>,
+
+    event_harvest_config: EventHarvestConfig,
+
+    #[serde(flatten)]
+    remain: HashMap<String, serde_json::Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct MetricRule {
+    ignore: bool,
+    each_segment: bool,
+    replace_all: bool,
+    terminate_chain: bool,
+    eval_order: i32,
+    replacement: String,
+    match_expression: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct Message {
+    message: String,
+    level: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct ServerSideConfig {
+    #[serde(rename = "transaction_tracer.enabled")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    transaction_tracer_enabled: Option<bool>,
+    #[serde(rename = "transaction_tracer.transaction_threshold")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    transaction_tracer_threshold: Option<TransactionTracerThreshold>,
+    #[serde(rename = "error_collector.enabled")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    error_collector_enabled: Option<bool>,
+    #[serde(rename = "error_collector.ignore_status_codes")]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    error_collector_ignore_status_codes: Vec<i32>,
+    #[serde(rename = "cross_application_tracer.enabled")]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    cross_application_tracer_enabled: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
+enum TransactionTracerThreshold {
+    Value(f64),
+    // TODO: the string must always be "apdex_f"
+    ApdexF(String),
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct PreconnectRequest {
     #[serde(default, skip_serializing_if = "String::is_empty")]
@@ -126,7 +241,7 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<()> {
         }],
     })?;
 
-    let resp: serde_json::Value = collector_request_internal(Request {
+    let resp: ConnectReply = collector_request_internal(Request {
         method: "connect",
         host: &resp.redirect_host,
         run_id: None,
@@ -383,7 +498,7 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<()> {
             },
         }],
     })?;
-    eprintln!("resp = {:?}", resp);
+    eprintln!("resp = {:#?}", resp);
 
     Ok(())
 }
