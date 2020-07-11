@@ -53,6 +53,8 @@ struct ConnectRequest {
 struct Settings {
     #[serde(rename = "AppName")]
     app_name: String,
+    #[serde(flatten)]
+    remain: HashMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -67,12 +69,12 @@ struct UtilizationData {
     logical_processors: Option<i32>,
     total_ram_mib: Option<u64>,
     hostname: String,
-    // #[serde(default, skip_serializing_if = "String::is_empty")]
-    // full_hostname: String,
-    // #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    // ip_address: Vec<String>,
-    // #[serde(default, skip_serializing_if = "String::is_empty")]
-    // boot_id: String,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    full_hostname: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    ip_address: Vec<String>,
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    boot_id: String,
     // #[serde(default, skip_serializing_if = "Option::is_none")]
     // config: Option<ConfigOverride>,
     // #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -133,23 +135,242 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<()> {
         license: license,
         data: &vec![ConnectRequest {
             pid: std::process::id(),
-            language: "c".to_owned(),             // TODO
-            agent_version: "0.1.0".to_owned(),    // TODO
-            host: "localhost".to_owned(),         // TODO
-            display_host: "localhost".to_owned(), // TODO
+            // TODO
+            language: "go".to_owned(),
+            // TODO
+            agent_version: "3.8.0".to_owned(),
+            // TODO
+            host: "some-host".to_owned(),
+            // TODO
+            display_host: "".to_owned(),
             settings: Settings {
                 app_name: name.to_owned(),
+                remain: vec![
+                    (
+                        "Attributes".to_owned(),
+                        serde_json::json!({
+                            "Enabled": true,
+                            "Exclude": null,
+                            "Include": null
+                        }),
+                    ),
+                    (
+                        "BrowserMonitoring".to_owned(),
+                        serde_json::json!({
+                          "Attributes": {
+                            "Enabled": false,
+                            "Exclude": null,
+                            "Include": null
+                          },
+                          "Enabled": true
+                        }),
+                    ),
+                    (
+                        "CrossApplicationTracer".to_owned(),
+                        serde_json::json!({
+                          "Enabled": true
+                        }),
+                    ),
+                    (
+                        "CustomInsightsEvents".to_owned(),
+                        serde_json::json!({
+                          "Enabled": true
+                        }),
+                    ),
+                    (
+                        "DatastoreTracer".to_owned(),
+                        serde_json::json!({
+                          "DatabaseNameReporting": {
+                            "Enabled": true
+                          },
+                          "InstanceReporting": {
+                            "Enabled": true
+                          },
+                          "QueryParameters": {
+                            "Enabled": true
+                          },
+                          "SlowQuery": {
+                            "Enabled": true,
+                            "Threshold": 10000000
+                          }
+                        }),
+                    ),
+                    (
+                        "DistributedTracer".to_owned(),
+                        serde_json::json!({
+                          "Enabled": false,
+                          "ExcludeNewRelicHeader": false
+                        }),
+                    ),
+                    ("Enabled".to_owned(), serde_json::json!(true)),
+                    ("Error".to_owned(), serde_json::json!(null)),
+                    (
+                        "ErrorCollector".to_owned(),
+                        serde_json::json!({
+                          "Attributes": {
+                            "Enabled": true,
+                            "Exclude": null,
+                            "Include": null
+                          },
+                          "CaptureEvents": true,
+                          "Enabled": true,
+                          "IgnoreStatusCodes": [
+                            0,
+                            5,
+                            404
+                          ],
+                          "RecordPanics": false
+                        }),
+                    ),
+                    (
+                        "Heroku".to_owned(),
+                        serde_json::json!({
+                          "DynoNamePrefixesToShorten": [
+                            "scheduler",
+                            "run"
+                          ],
+                          "UseDynoNames": true
+                        }),
+                    ),
+                    ("HighSecurity".to_owned(), serde_json::json!(false)),
+                    ("Host".to_owned(), serde_json::json!("")),
+                    ("HostDisplayName".to_owned(), serde_json::json!("")),
+                    (
+                        "InfiniteTracing".to_owned(),
+                        serde_json::json!({
+                          "SpanEvents": {
+                            "QueueSize": 10000
+                          },
+                          "TraceObserver": {
+                            "Host": "",
+                            "Port": 443
+                          }
+                        }),
+                    ),
+                    ("Labels".to_owned(), serde_json::json!({})),
+                    ("Logger".to_owned(), serde_json::json!(null)),
+                    (
+                        "RuntimeSampler".to_owned(),
+                        serde_json::json!({
+                          "Enabled": true
+                        }),
+                    ),
+                    ("SecurityPoliciesToken".to_owned(), serde_json::json!("")),
+                    (
+                        "ServerlessMode".to_owned(),
+                        serde_json::json!({
+                          "AccountID": "",
+                          "ApdexThreshold": 500000000,
+                          "Enabled": false,
+                          "PrimaryAppID": "",
+                          "TrustedAccountKey": ""
+                        }),
+                    ),
+                    (
+                        "SpanEvents".to_owned(),
+                        serde_json::json!({
+                          "Attributes": {
+                            "Enabled": true,
+                            "Exclude": null,
+                            "Include": null
+                          },
+                          "Enabled": true
+                        }),
+                    ),
+                    (
+                        "TransactionEvents".to_owned(),
+                        serde_json::json!({
+                          "Attributes": {
+                            "Enabled": true,
+                            "Exclude": null,
+                            "Include": null
+                          },
+                          "Enabled": true,
+                          "MaxSamplesStored": 10000
+                        }),
+                    ),
+                    (
+                        "TransactionTracer".to_owned(),
+                        serde_json::json!({
+                          "Attributes": {
+                            "Enabled": true,
+                            "Exclude": null,
+                            "Include": null
+                          },
+                          "Enabled": true,
+                          "Segments": {
+                            "Attributes": {
+                              "Enabled": true,
+                              "Exclude": null,
+                              "Include": null
+                            },
+                            "StackTraceThreshold": 500000000,
+                            "Threshold": 2000000
+                          },
+                          "Threshold": {
+                            "Duration": 500000000,
+                            "IsApdexFailing": true
+                          }
+                        }),
+                    ),
+                    ("Transport".to_owned(), serde_json::json!(null)),
+                    (
+                        "Utilization".to_owned(),
+                        serde_json::json!({
+                          "BillingHostname": "",
+                          "DetectAWS": true,
+                          "DetectAzure": true,
+                          "DetectDocker": true,
+                          "DetectGCP": true,
+                          "DetectKubernetes": true,
+                          "DetectPCF": true,
+                          "LogicalProcessors": 0,
+                          "TotalRAMMIB": 0
+                        }),
+                    ),
+                    (
+                        "browser_monitoring.loader".to_owned(),
+                        serde_json::json!("rum"),
+                    ),
+                ]
+                .into_iter()
+                .collect(),
             },
             app_name: name.split(";").map(|s| s.to_owned()).collect(),
             high_security: false,
             labels: vec![],
-            environment: vec![],
+            environment: vec![
+                // TODO
+                ("runtime.Compiler".to_owned(), "gc".to_owned().into()),
+                // TODO
+                ("runtime.GOARCH".to_owned(), "amd64".to_owned().into()),
+                // TODO
+                ("runtime.GOOS".to_owned(), "linux".to_owned().into()),
+                // TODO
+                ("runtime.Version".to_owned(), "go1.14.2".to_owned().into()),
+                // TODO
+                ("runtime.NumCPU".to_owned(), 4.into()),
+            ],
             identifier: name.to_owned(),
             utilization: UtilizationData {
                 metadata_version: 5,
-                logical_processors: None,
-                total_ram_mib: None,
-                hostname: "localhost".to_owned(),
+                // TODO
+                logical_processors: Some(4),
+                // TODO
+                total_ram_mib: Some(16305),
+                // TODO
+                hostname: "some-host".to_owned(),
+                // TODO
+                full_hostname: "".to_owned(),
+                // TODO
+                ip_address: vec![
+                    "192.168.1.3".to_owned(),
+                    "2409:10:87e0:3802:4ef:176c:9999:c5".to_owned(),
+                    "2409:10:87e0:3802:5af:37c9:9af:785a".to_owned(),
+                    "fe80::84ea:76c:499:1".to_owned(),
+                ],
+                // TODO
+                boot_id: "34caa33e-b1dd-4511-a27e-952e12f1ee3b".to_owned(),
             },
             metadata: HashMap::new(),
             event_harvest_config: EventHarvestConfig {
@@ -204,13 +425,14 @@ fn collector_request_internal<T: Serialize, U: DeserializeOwned>(
 
     let url = format!("https://{}/agent_listener/invoke_raw_method", req.host);
     let resp = attohttpc::post(url)
-        .param("marshal_format", "json")
-        .param("protocol_version", "17")
-        .param("method", req.method)
         .param("license_key", req.license)
-        .header("Accept-Encoding", "identity, deflate")
+        .param("marshal_format", "json")
+        .param("method", req.method)
+        .param("protocol_version", "17")
+        // .header("Accept-Encoding", "identity, deflate")
         .header("Content-Type", "application/octet-stream")
-        .header("User-Agent", "NewRelic-Rust-Agent-Unofficial/0.1.0")
+        // .header("User-Agent", "NewRelic-Rust-Agent-Unofficial/0.1.0")
+        .header("User-Agent", "NewRelic-Go-Agent/3.8.0")
         .header("Content-Encoding", "gzip")
         .body(Bytes(compressed))
         .send()?;
