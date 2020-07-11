@@ -405,14 +405,7 @@ fn collector_request_internal<T: Serialize, U: DeserializeOwned>(
 ) -> Result<U, RpmError> {
     let compressed = {
         let mut stream = GzEncoder::new(Vec::<u8>::new(), Compression::default());
-        serde_json::to_writer(
-            &mut stream,
-            &vec![PreconnectRequest {
-                security_policies_token: "".to_owned(),
-                high_security: false,
-            }],
-        )
-        .unwrap();
+        serde_json::to_writer(&mut stream, req.data).unwrap();
         stream.finish().unwrap()
     };
     if compressed.len() > req.max_payload_size {
