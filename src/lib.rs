@@ -1,26 +1,47 @@
 use std::fmt;
 use std::sync::{Arc, Weak};
+use std::thread::{self, JoinHandle};
 
 mod collector;
 
 #[derive(Debug)]
 pub struct Daemon {
     inner: Arc<ApplicationInner>,
+    handle: Option<JoinHandle<()>>,
 }
 
 impl Daemon {
     pub fn new(name: &str, license: &str) -> Self {
-        crate::collector::connect_attempt(name, license).unwrap();
-
         // TODO: validation
+        let inner = Arc::new(ApplicationInner::new(name, license));
+        let handle = {
+            let inner = inner.clone();
+            thread::spawn(move || {
+                inner.run();
+            })
+        };
+
         Daemon {
-            inner: Arc::new(ApplicationInner::new(name, license)),
+            inner,
+            handle: Some(handle),
         }
     }
 
     pub fn application(&self) -> Application {
         Application {
             inner: Arc::downgrade(&self.inner),
+        }
+    }
+}
+
+impl std::ops::Drop for Daemon {
+    fn drop(&mut self) {
+        if let Some(handle) = self.handle.take() {
+            let result = handle.join();
+            if let Err(e) = result {
+                // TODO: logging
+                eprintln!("NewRelic daemon failed: {:?}", e);
+            }
         }
     }
 }
@@ -41,6 +62,10 @@ impl ApplicationInner {
             name: name.to_owned(),
             license: license.to_owned(),
         }
+    }
+
+    fn run(self: &Arc<Self>) {
+        crate::collector::connect_attempt(&self.name, &self.license).unwrap();
     }
 }
 
