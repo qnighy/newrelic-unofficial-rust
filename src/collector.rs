@@ -125,7 +125,6 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<()> {
             high_security: false,
         }],
     })?;
-    eprintln!("resp = {:?}", resp);
 
     let resp: serde_json::Value = collector_request_internal(Request {
         method: "connect",
