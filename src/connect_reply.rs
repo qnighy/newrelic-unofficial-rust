@@ -118,8 +118,8 @@ pub(crate) enum TransactionTracerThreshold {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct EventHarvestConfig {
-    #[serde(default, skip_serializing_if = "u32_is_zero")]
-    pub(crate) report_period_ms: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) report_period_ms: Option<u32>,
     pub(crate) harvest_limits: HarvestLimits,
 }
 
@@ -133,8 +133,4 @@ pub(crate) struct HarvestLimits {
     pub(crate) error_event_data: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) span_event_data: Option<u32>,
-}
-
-fn u32_is_zero(x: &u32) -> bool {
-    *x == 0
 }

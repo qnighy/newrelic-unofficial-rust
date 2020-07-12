@@ -6,13 +6,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;
 
+use crate::app_run::AppRun;
 use crate::connect_reply::{ConnectReply, EventHarvestConfig, HarvestLimits};
-
-const DEFAULT_REPORT_PERIOD_MS: u32 = 60 * 1000;
-const MAX_PAYLOAD_SIZE: usize = 1000 * 1000;
-const MAX_CUSTOM_EVENTS: u32 = 10 * 1000;
-const MAX_TXN_EVENTS: u32 = 10 * 1000;
-const MAX_ERROR_EVENTS: u32 = 100;
+use crate::limits::{
+    DEFAULT_REPORT_PERIOD_MS, MAX_CUSTOM_EVENTS, MAX_ERROR_EVENTS, MAX_PAYLOAD_SIZE, MAX_TXN_EVENTS,
+};
 
 #[derive(Error, Debug)]
 pub(crate) enum RpmError {
@@ -90,7 +88,7 @@ struct PreconnectRequest {
     high_security: bool,
 }
 
-pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<()> {
+pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<AppRun> {
     let resp: PreconnectReply = collector_request_internal(Request {
         method: "preconnect",
         // TODO: config.host
@@ -352,7 +350,7 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<()> {
             },
             metadata: HashMap::new(),
             event_harvest_config: EventHarvestConfig {
-                report_period_ms: DEFAULT_REPORT_PERIOD_MS,
+                report_period_ms: Some(DEFAULT_REPORT_PERIOD_MS),
                 harvest_limits: HarvestLimits {
                     analytic_event_data: Some(MAX_TXN_EVENTS),
                     custom_event_data: Some(MAX_CUSTOM_EVENTS),
@@ -362,9 +360,9 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<()> {
             },
         }],
     })?;
-    eprintln!("resp = {:#?}", resp);
+    // eprintln!("resp = {:#?}", resp);
 
-    Ok(())
+    Ok(AppRun::new(&resp))
 }
 
 #[derive(Debug)]
