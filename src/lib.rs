@@ -9,12 +9,14 @@ use std::time::Duration;
 
 use crate::app_run::AppRun;
 use crate::harvest::Harvest;
+pub use crate::transaction::Transaction;
 
 mod app_run;
 mod collector;
 mod connect_reply;
 mod harvest;
 mod limits;
+mod transaction;
 
 #[derive(Debug)]
 pub struct Daemon {
@@ -65,6 +67,10 @@ impl std::ops::Drop for Daemon {
 pub struct Application {
     inner: Weak<ApplicationInner>,
 }
+
+// impl Application {
+//     pub fn start_transaction(&self) -> Transaction {}
+// }
 
 struct ApplicationInner {
     name: String,
