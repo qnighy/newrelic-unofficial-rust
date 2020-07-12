@@ -34,8 +34,8 @@ struct ConnectRequest {
     language: String,
     agent_version: String,
     host: String,
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    display_host: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    display_host: Option<String>,
     settings: Settings,
     app_name: Vec<String>,
     high_security: bool,
@@ -103,6 +103,11 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<AppRu
         }],
     })?;
 
+    let hostname = if let Ok(hostname) = hostname::get() {
+        hostname.to_string_lossy().into_owned()
+    } else {
+        "unknown".to_owned()
+    };
     let resp: ConnectReply = collector_request_internal(Request {
         method: "connect",
         host: &resp.redirect_host,
@@ -115,10 +120,8 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<AppRu
             language: "go".to_owned(),
             // TODO
             agent_version: "3.8.0".to_owned(),
-            // TODO
-            host: "some-host".to_owned(),
-            // TODO
-            display_host: "".to_owned(),
+            host: hostname.clone(),
+            display_host: None,
             settings: Settings {
                 app_name: name.to_owned(),
                 remain: vec![
@@ -334,8 +337,7 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<AppRu
                 logical_processors: Some(4),
                 // TODO
                 total_ram_mib: Some(16305),
-                // TODO
-                hostname: "some-host".to_owned(),
+                hostname: hostname.clone(),
                 // TODO
                 full_hostname: "".to_owned(),
                 // TODO
