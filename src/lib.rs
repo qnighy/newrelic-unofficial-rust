@@ -17,6 +17,7 @@ mod connect_reply;
 mod harvest;
 mod limits;
 mod transaction;
+mod utilization;
 
 #[derive(Debug)]
 pub struct Daemon {

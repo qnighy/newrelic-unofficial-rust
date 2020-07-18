@@ -11,6 +11,7 @@ use crate::connect_reply::{ConnectReply, EventHarvestConfig, HarvestLimits};
 use crate::limits::{
     DEFAULT_REPORT_PERIOD_MS, MAX_CUSTOM_EVENTS, MAX_ERROR_EVENTS, MAX_PAYLOAD_SIZE, MAX_TXN_EVENTS,
 };
+use crate::utilization::UtilizationData;
 
 #[derive(Error, Debug)]
 pub(crate) enum RpmError {
@@ -64,24 +65,6 @@ struct Label {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct UtilizationData {
-    metadata_version: i32,
-    logical_processors: Option<i32>,
-    total_ram_mib: Option<u64>,
-    hostname: String,
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    full_hostname: String,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    ip_address: Vec<String>,
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    boot_id: String,
-    // #[serde(default, skip_serializing_if = "Option::is_none")]
-    // config: Option<ConfigOverride>,
-    // #[serde(default, skip_serializing_if = "Option::is_none")]
-    // vendors: Option<Vendors>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 struct PreconnectRequest {
     #[serde(default, skip_serializing_if = "String::is_empty")]
     security_policies_token: String,
@@ -103,11 +86,7 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<AppRu
         }],
     })?;
 
-    let hostname = if let Ok(hostname) = hostname::get() {
-        hostname.to_string_lossy().into_owned()
-    } else {
-        "unknown".to_owned()
-    };
+    let utilization = UtilizationData::gather();
     let resp: ConnectReply = collector_request_internal(Request {
         method: "connect",
         host: &resp.redirect_host,
@@ -120,7 +99,7 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<AppRu
             language: "go".to_owned(),
             // TODO
             agent_version: "3.8.0".to_owned(),
-            host: hostname.clone(),
+            host: utilization.hostname().to_owned(),
             display_host: None,
             settings: Settings {
                 app_name: name.to_owned(),
@@ -331,25 +310,7 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<AppRu
                 ("runtime.NumCPU".to_owned(), 4.into()),
             ],
             identifier: name.to_owned(),
-            utilization: UtilizationData {
-                metadata_version: 5,
-                // TODO
-                logical_processors: Some(4),
-                // TODO
-                total_ram_mib: Some(16305),
-                hostname: hostname.clone(),
-                // TODO
-                full_hostname: "".to_owned(),
-                // TODO
-                ip_address: vec![
-                    "192.168.1.3".to_owned(),
-                    "2409:10:87e0:3802:4ef:176c:9999:c5".to_owned(),
-                    "2409:10:87e0:3802:5af:37c9:9af:785a".to_owned(),
-                    "fe80::84ea:76c:499:1".to_owned(),
-                ],
-                // TODO
-                boot_id: "34caa33e-b1dd-4511-a27e-952e12f1ee3b".to_owned(),
-            },
+            utilization,
             metadata: HashMap::new(),
             event_harvest_config: EventHarvestConfig {
                 report_period_ms: Some(DEFAULT_REPORT_PERIOD_MS),
