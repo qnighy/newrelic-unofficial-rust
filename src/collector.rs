@@ -361,10 +361,8 @@ fn collector_request_internal<T: Serialize, U: DeserializeOwned>(
         .param("marshal_format", "json")
         .param("method", req.method)
         .param("protocol_version", "17")
-        // .header("Accept-Encoding", "identity, deflate")
         .header("Content-Type", "application/octet-stream")
-        // .header("User-Agent", "NewRelic-Rust-Agent-Unofficial/0.1.0")
-        .header("User-Agent", "NewRelic-Go-Agent/3.8.0")
+        .header("User-Agent", "NewRelic-Rust-Agent-Unofficial/0.1.0")
         .header("Content-Encoding", "gzip")
         .body(Bytes(compressed))
         .send()?;
