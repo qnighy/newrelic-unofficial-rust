@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use sysinfo::SystemExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct UtilizationData {
@@ -20,27 +21,24 @@ pub(crate) struct UtilizationData {
 
 impl UtilizationData {
     pub(crate) fn gather() -> Self {
+        let mut system = sysinfo::System::new_all();
+        system.refresh_memory();
+        let logical_processors = system.get_processors().len();
+        let total_ram_mib = system.get_total_memory() / 1024; // KiB -> MiB
         let hostname = if let Ok(hostname) = hostname::get() {
             hostname.to_string_lossy().into_owned()
         } else {
             "unknown".to_owned()
         };
+        let ip_address = ip_addresses().unwrap();
         UtilizationData {
             metadata_version: 5,
-            // TODO
-            logical_processors: Some(4),
-            // TODO
-            total_ram_mib: Some(16305),
+            logical_processors: Some(logical_processors as i32),
+            total_ram_mib: Some(total_ram_mib),
             hostname,
             // TODO
             full_hostname: "".to_owned(),
-            // TODO
-            ip_address: vec![
-                "192.168.1.3".to_owned(),
-                "2409:10:87e0:3802:4ef:176c:9999:c5".to_owned(),
-                "2409:10:87e0:3802:5af:37c9:9af:785a".to_owned(),
-                "fe80::84ea:76c:499:1".to_owned(),
-            ],
+            ip_address,
             // TODO
             boot_id: "34caa33e-b1dd-4511-a27e-952e12f1ee3b".to_owned(),
             // TODO
@@ -52,6 +50,41 @@ impl UtilizationData {
 
     pub(crate) fn hostname(&self) -> &str {
         &self.hostname
+    }
+}
+
+fn ip_addresses() -> std::io::Result<Vec<String>> {
+    use std::net::{SocketAddr, UdpSocket};
+
+    let zero = &[
+        "0.0.0.0:0".parse::<SocketAddr>().unwrap(),
+        "[::]:0".parse::<SocketAddr>().unwrap(),
+    ][..];
+    let socket = UdpSocket::bind(zero)?;
+    socket.set_broadcast(true)?;
+    socket.connect("newrelic.com:10002")?;
+    let addr = socket.local_addr()?;
+    if addr.ip().is_loopback() || addr.ip().is_unspecified() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Unexpected connection address: {:?}", addr),
+        ));
+    }
+    let ip = addr.ip();
+    let ifaces = get_if_addrs::get_if_addrs()?;
+    if let Some(name) = ifaces
+        .iter()
+        .find(|iface| iface.ip() == ip)
+        .map(|iface| &iface.name)
+    {
+        let addrs = ifaces
+            .iter()
+            .filter(|iface| &iface.name == name)
+            .map(|iface| iface.ip().to_string())
+            .collect::<Vec<_>>();
+        Ok(addrs)
+    } else {
+        Ok(vec![])
     }
 }
 
