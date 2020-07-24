@@ -30,7 +30,10 @@ impl UtilizationData {
         } else {
             "unknown".to_owned()
         };
-        let ip_address = ip_addresses().unwrap();
+        let ip_address = ip_addresses().unwrap_or_else(|e| {
+            log::debug!("error gathering ip addresses: {}", e);
+            vec![]
+        });
         UtilizationData {
             metadata_version: 5,
             logical_processors: Some(logical_processors as i32),
