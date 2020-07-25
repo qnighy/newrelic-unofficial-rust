@@ -15,8 +15,8 @@ pub(crate) struct UtilizationData {
     boot_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     config: Option<ConfigOverride>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    vendors: Option<Vendors>,
+    #[serde(default, skip_serializing_if = "Vendors::is_empty")]
+    vendors: Vendors,
 }
 
 impl UtilizationData {
@@ -38,6 +38,14 @@ impl UtilizationData {
             log::debug!("error gathering boot id: {}", e);
             None
         });
+        let vendors = Vendors {
+            aws: None,
+            azure: None,
+            gcp: None,
+            pcf: None,
+            docker: None,
+            kubernetes: Kubernetes::gather(),
+        };
         UtilizationData {
             metadata_version: 5,
             logical_processors: Some(logical_processors as i32),
@@ -49,8 +57,7 @@ impl UtilizationData {
             boot_id,
             // TODO
             config: None,
-            // TODO
-            vendors: None,
+            vendors,
         }
     }
 
@@ -128,7 +135,7 @@ struct ConfigOverride {
     hostname: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 struct Vendors {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     aws: Option<Aws>,
@@ -142,6 +149,17 @@ struct Vendors {
     docker: Option<Docker>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     kubernetes: Option<Kubernetes>,
+}
+
+impl Vendors {
+    fn is_empty(&self) -> bool {
+        self.aws.is_none()
+            && self.azure.is_none()
+            && self.gcp.is_none()
+            && self.pcf.is_none()
+            && self.docker.is_none()
+            && self.kubernetes.is_none()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -200,6 +218,15 @@ struct Docker {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct Kubernetes {
     kubernetes_service_host: String,
+}
+
+impl Kubernetes {
+    fn gather() -> Option<Self> {
+        let value = std::env::var_os("KUBERNETES_SERVICE_HOST")?;
+        Some(Self {
+            kubernetes_service_host: value.to_string_lossy().into_owned(),
+        })
+    }
 }
 
 mod numeric_string {
