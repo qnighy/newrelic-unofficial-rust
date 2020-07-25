@@ -11,8 +11,8 @@ pub(crate) struct UtilizationData {
     full_hostname: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     ip_address: Vec<String>,
-    #[serde(default, skip_serializing_if = "String::is_empty")]
-    boot_id: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    boot_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     config: Option<ConfigOverride>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -34,6 +34,10 @@ impl UtilizationData {
             log::debug!("error gathering ip addresses: {}", e);
             vec![]
         });
+        let boot_id = boot_id().unwrap_or_else(|e| {
+            log::debug!("error gathering boot id: {}", e);
+            None
+        });
         UtilizationData {
             metadata_version: 5,
             logical_processors: Some(logical_processors as i32),
@@ -42,8 +46,7 @@ impl UtilizationData {
             // TODO
             full_hostname: "".to_owned(),
             ip_address,
-            // TODO
-            boot_id: "34caa33e-b1dd-4511-a27e-952e12f1ee3b".to_owned(),
+            boot_id,
             // TODO
             config: None,
             // TODO
@@ -89,6 +92,30 @@ fn ip_addresses() -> std::io::Result<Vec<String>> {
     } else {
         Ok(vec![])
     }
+}
+
+fn boot_id() -> std::io::Result<Option<String>> {
+    use std::fs::read_to_string;
+    use std::io;
+
+    if std::env::consts::OS != "linux" {
+        return Ok(None);
+    }
+
+    let content = read_to_string("/proc/sys/kernel/random/boot_id")?;
+    let content = content.trim();
+    if !content.is_ascii() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "boot_id contains non-ascii letters",
+        ));
+    }
+    let content = if content.len() > 128 {
+        &content[..128] // it must succeed because of the check above
+    } else {
+        content
+    };
+    Ok(Some(content.to_owned()))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
