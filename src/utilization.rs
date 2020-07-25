@@ -38,12 +38,16 @@ impl UtilizationData {
             log::debug!("error gathering boot id: {}", e);
             None
         });
+        let docker = Docker::gather().unwrap_or_else(|e| {
+            log::debug!("error gathering docker: {}", e);
+            None
+        });
         let vendors = Vendors {
             aws: None,
             azure: None,
             gcp: None,
             pcf: None,
-            docker: None,
+            docker,
             kubernetes: Kubernetes::gather(),
         };
         UtilizationData {
@@ -213,6 +217,60 @@ struct Pcf {
 struct Docker {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     id: Option<String>,
+}
+
+impl Docker {
+    fn gather() -> std::io::Result<Option<Self>> {
+        use std::fs::read_to_string;
+        use std::io;
+
+        if std::env::consts::OS != "linux" {
+            return Ok(None);
+        }
+        let content = read_to_string("/proc/self/cgroup")?;
+        for line in content.lines() {
+            let parts = line.split(':').collect::<Vec<_>>();
+            if parts.len() < 3 {
+                continue;
+            }
+            if !parts[1].split(',').any(|s| s == "cpu") {
+                continue;
+            }
+            if let Some(docker_id) = find_docker_id(parts[2]) {
+                if docker_id.len() != DOCKER_ID_LENGTH {
+                    return Err(io::Error::new(
+                        io::ErrorKind::InvalidInput,
+                        format!("{} is not {} characters long", docker_id, DOCKER_ID_LENGTH),
+                    ));
+                }
+                return Ok(Some(Self {
+                    id: Some(docker_id.to_owned()),
+                }));
+            }
+        }
+
+        Ok(Some(Self { id: None }))
+    }
+}
+
+const DOCKER_ID_LENGTH: usize = 64;
+
+fn find_docker_id(s: &str) -> Option<&str> {
+    let mut start = 0;
+    for i in 0..s.len() {
+        let byte = s.as_bytes()[i];
+        if b'0' <= byte && byte <= b'9' || b'a' <= byte && byte <= b'f' {
+            // continue
+        } else if i - start >= DOCKER_ID_LENGTH {
+            return Some(&s[start..i]);
+        } else {
+            start = i + 1;
+        }
+    }
+    if s.len() - start >= DOCKER_ID_LENGTH {
+        return Some(&s[start..]);
+    }
+    None
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
