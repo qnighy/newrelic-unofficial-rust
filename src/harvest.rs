@@ -1,6 +1,7 @@
 use std::time::{Duration, Instant};
 
 use crate::app_run::AppRun;
+use crate::collector::collector_request;
 
 #[derive(Debug)]
 pub(crate) struct Harvest {
@@ -27,7 +28,7 @@ impl Harvest {
         }
     }
 
-    pub(crate) fn harvest(&mut self, force: bool) {
+    pub(crate) fn harvest(&mut self, run: &AppRun, force: bool) {
         let now = Instant::now();
         if self.metrics_traces_timer.ready(now, force) {
             eprintln!("Processing metrics traces...");
@@ -39,7 +40,51 @@ impl Harvest {
             eprintln!("Processing custom events...");
         }
         if self.txn_events_timer.ready(now, force) {
+            use crate::analytics_events::{
+                AgentAttrs, AnalyticsEvent, AnalyticsEventWithAttrs, CollectorPayload, Properties,
+                TransactionEvent, TransactionShared, UserAttrs,
+            };
+            use std::time::{SystemTime, UNIX_EPOCH};
             eprintln!("Processing txn events...");
+            // TODO: handle errors
+            collector_request(
+                run,
+                "analytic_event_data",
+                &CollectorPayload(
+                    run.agent_run_id.clone(),
+                    Properties {
+                        // TODO: use cap
+                        reservoir_size: 833,
+                        events_seen: 1,
+                    },
+                    vec![AnalyticsEventWithAttrs(
+                        AnalyticsEvent::Transaction(TransactionEvent {
+                            name: "OtherTransaction/Go/test".to_owned(),
+                            timestamp: (SystemTime::now() - Duration::from_secs(20))
+                                .duration_since(UNIX_EPOCH)
+                                .unwrap()
+                                .as_secs() as i64,
+                            apdex_perf_zone: None,
+                            error: false,
+                            shared: TransactionShared {
+                                duration: 20.0,
+                                queue_duration: None,
+                                external_call_count: None,
+                                external_duration: None,
+                                database_call_count: None,
+                                database_duration: None,
+                                synthetics_resource_id: None,
+                                synthetics_job_id: None,
+                                synthetics_monitor_id: None,
+                            },
+                            total_time: 20.0,
+                        }),
+                        UserAttrs {},
+                        AgentAttrs {},
+                    )],
+                ),
+            )
+            .unwrap();
         }
         if self.error_events_timer.ready(now, force) {
             eprintln!("Processing error events...");

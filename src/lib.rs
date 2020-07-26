@@ -11,11 +11,13 @@ use crate::app_run::AppRun;
 use crate::harvest::Harvest;
 pub use crate::transaction::Transaction;
 
+mod analytics_events;
 mod app_run;
 mod collector;
 mod connect_reply;
 mod harvest;
 mod limits;
+mod metrics;
 mod transaction;
 mod utilization;
 
@@ -119,8 +121,8 @@ impl ApplicationInner {
                 }
                 Err(RecvTimeoutError::Timeout) => {
                     let mut state = self.state.lock();
-                    if let AppState::Running { run: _, harvest } = &mut *state {
-                        harvest.harvest(false);
+                    if let AppState::Running { run, harvest } = &mut *state {
+                        harvest.harvest(run, false);
                     }
                 }
                 Ok(()) => {}
@@ -131,8 +133,8 @@ impl ApplicationInner {
             let mut state = self.state.lock();
             std::mem::replace(&mut *state, AppState::Dead)
         };
-        if let AppState::Running { run: _, harvest } = &mut old_state {
-            harvest.harvest(true);
+        if let AppState::Running { run, harvest } = &mut old_state {
+            harvest.harvest(run, true);
         }
     }
 }

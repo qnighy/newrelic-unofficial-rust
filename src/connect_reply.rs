@@ -6,6 +6,12 @@ use std::collections::HashMap;
 pub(crate) struct AgentRunId(pub(crate) String);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct PreconnectReply {
+    pub(crate) redirect_host: String,
+    // pub(crate) security_policies: SecurityPolicies,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct ConnectReply {
     pub(crate) agent_run_id: AgentRunId,
     pub(crate) request_headers_map: HashMap<String, String>,

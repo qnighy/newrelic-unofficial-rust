@@ -1,4 +1,5 @@
 use attohttpc::body::Bytes;
+use attohttpc::header::HeaderName;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use serde::de::DeserializeOwned;
@@ -7,7 +8,7 @@ use std::collections::HashMap;
 use thiserror::Error;
 
 use crate::app_run::AppRun;
-use crate::connect_reply::{ConnectReply, EventHarvestConfig, HarvestLimits};
+use crate::connect_reply::{ConnectReply, EventHarvestConfig, HarvestLimits, PreconnectReply};
 use crate::limits::{
     DEFAULT_REPORT_PERIOD_MS, MAX_CUSTOM_EVENTS, MAX_ERROR_EVENTS, MAX_PAYLOAD_SIZE, MAX_TXN_EVENTS,
 };
@@ -71,8 +72,25 @@ struct PreconnectRequest {
     high_security: bool,
 }
 
+pub(crate) fn collector_request<T>(run: &AppRun, command: &str, payload: &T) -> anyhow::Result<()>
+where
+    T: Serialize,
+{
+    eprintln!("payload = {}", serde_json::to_string(payload).unwrap());
+    collector_request_internal(Request {
+        method: command,
+        host: &run.host,
+        run_id: Some(&run.agent_run_id.0),
+        max_payload_size: MAX_PAYLOAD_SIZE,
+        license: &run.license,
+        request_headers_map: &run.request_headers_map,
+        data: payload,
+    })?;
+    Ok(())
+}
+
 pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<AppRun> {
-    let resp: PreconnectReply = collector_request_internal(Request {
+    let resp_pre: PreconnectReply = collector_request_json(Request {
         method: "preconnect",
         // TODO: config.host
         // TODO: preconnectRegionLicenseRegex (collector.xxxx.nr-data.net)
@@ -80,6 +98,7 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<AppRu
         run_id: None,
         max_payload_size: MAX_PAYLOAD_SIZE,
         license: license,
+        request_headers_map: &HashMap::new(),
         data: &vec![PreconnectRequest {
             security_policies_token: "".to_owned(),
             high_security: false,
@@ -87,12 +106,13 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<AppRu
     })?;
 
     let utilization = UtilizationData::gather();
-    let resp: ConnectReply = collector_request_internal(Request {
+    let resp: ConnectReply = collector_request_json(Request {
         method: "connect",
-        host: &resp.redirect_host,
+        host: &resp_pre.redirect_host,
         run_id: None,
         max_payload_size: MAX_PAYLOAD_SIZE,
         license: license,
+        request_headers_map: &HashMap::new(),
         data: &vec![ConnectRequest {
             pid: std::process::id(),
             // TODO
@@ -325,7 +345,7 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<AppRu
     })?;
     // eprintln!("resp = {:#?}", resp);
 
-    Ok(AppRun::new(&resp))
+    Ok(AppRun::new(license, &resp_pre, &resp))
 }
 
 #[derive(Debug)]
@@ -335,13 +355,21 @@ struct Request<'a, T> {
     run_id: Option<&'a str>,
     max_payload_size: usize,
     license: &'a str,
-    // request_headers_map: HashMap<String, String>,
+    request_headers_map: &'a HashMap<String, String>,
     data: &'a T,
 }
 
-fn collector_request_internal<T: Serialize, U: DeserializeOwned>(
+fn collector_request_json<T: Serialize, U: DeserializeOwned>(
     req: Request<'_, T>,
 ) -> Result<U, RpmError> {
+    let resp = collector_request_internal(req)?;
+
+    Ok(resp.json::<ResponseContainer<U>>()?.return_value)
+}
+
+fn collector_request_internal<T: Serialize>(
+    req: Request<'_, T>,
+) -> Result<attohttpc::Response, RpmError> {
     let compressed = {
         let mut stream = GzEncoder::new(Vec::<u8>::new(), Compression::default());
         serde_json::to_writer(&mut stream, req.data).unwrap();
@@ -356,16 +384,22 @@ fn collector_request_internal<T: Serialize, U: DeserializeOwned>(
     }
 
     let url = format!("https://{}/agent_listener/invoke_raw_method", req.host);
-    let resp = attohttpc::post(url)
+    let mut collector_req = attohttpc::post(url)
         .param("license_key", req.license)
         .param("marshal_format", "json")
         .param("method", req.method)
         .param("protocol_version", "17")
         .header("Content-Type", "application/octet-stream")
         .header("User-Agent", "NewRelic-Rust-Agent-Unofficial/0.1.0")
-        .header("Content-Encoding", "gzip")
-        .body(Bytes(compressed))
-        .send()?;
+        .header("Content-Encoding", "gzip");
+    if let Some(run_id) = req.run_id {
+        collector_req = collector_req.param("run_id", run_id);
+    }
+    for (header, value) in req.request_headers_map {
+        let header = header.parse::<HeaderName>().unwrap();
+        collector_req = collector_req.header(header, value);
+    }
+    let resp = collector_req.body(Bytes(compressed)).send()?;
 
     if ![200, 202].contains(&resp.status().as_u16()) {
         return Err(RpmError::StatusError {
@@ -376,16 +410,10 @@ fn collector_request_internal<T: Serialize, U: DeserializeOwned>(
         });
     }
 
-    Ok(resp.json::<ResponseContainer<U>>()?.return_value)
+    Ok(resp)
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct ResponseContainer<T> {
     return_value: T,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct PreconnectReply {
-    redirect_host: String,
-    // security_policies: SecurityPolicies,
 }

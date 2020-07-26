@@ -1,13 +1,15 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use crate::connect_reply::{AgentRunId, ConnectReply};
+use crate::connect_reply::{AgentRunId, ConnectReply, PreconnectReply};
 use crate::limits::{DEFAULT_CONFIGURABLE_EVENT_HARVEST, FIXED_HARVEST_PERIOD};
-
-// TODO: dedup with crate::collector
 
 #[derive(Debug)]
 pub(crate) struct AppRun {
+    pub(crate) host: String,
+    // TODO: dedup with config
+    pub(crate) license: String,
+
     pub(crate) agent_run_id: AgentRunId,
     pub(crate) request_headers_map: HashMap<String, String>,
     pub(crate) metrics_traces_period: Duration,
@@ -18,7 +20,7 @@ pub(crate) struct AppRun {
 }
 
 impl AppRun {
-    pub(crate) fn new(reply: &ConnectReply) -> AppRun {
+    pub(crate) fn new(license: &str, reply_pre: &PreconnectReply, reply: &ConnectReply) -> AppRun {
         let configurable_period = if let Some(ms) = reply.event_harvest_config.report_period_ms {
             Duration::from_millis(u64::from(ms))
         } else {
@@ -32,6 +34,9 @@ impl AppRun {
             }
         };
         Self {
+            host: reply_pre.redirect_host.clone(),
+            license: license.to_owned(),
+
             agent_run_id: reply.agent_run_id.clone(),
             request_headers_map: reply.request_headers_map.clone(),
             metrics_traces_period: FIXED_HARVEST_PERIOD,
