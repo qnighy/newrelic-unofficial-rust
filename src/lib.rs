@@ -71,9 +71,11 @@ pub struct Application {
     inner: Weak<ApplicationInner>,
 }
 
-// impl Application {
-//     pub fn start_transaction(&self) -> Transaction {}
-// }
+impl Application {
+    pub fn start_transaction(&self, name: &str) -> Transaction {
+        Transaction::new(&self.inner, name)
+    }
+}
 
 struct ApplicationInner {
     name: String,
@@ -167,7 +169,13 @@ mod tests {
     #[test]
     fn it_works() {
         let license = std::env::var("NEW_RELIC_LICENSE_KEY").unwrap();
-        let _daemon = Daemon::new("rust-test", &license);
-        sleep(Duration::from_secs(30));
+        let daemon = Daemon::new("rust-test", &license);
+        let app = daemon.application();
+        for _ in 0..120 {
+            let txn = app.start_transaction("test");
+            sleep(Duration::from_millis(500));
+            drop(txn);
+            sleep(Duration::from_millis(500));
+        }
     }
 }

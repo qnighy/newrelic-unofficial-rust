@@ -1,5 +1,6 @@
 use std::time::{Duration, Instant};
 
+use crate::analytics_events::AnalyticsEventWithAttrs;
 use crate::app_run::AppRun;
 use crate::collector::collector_request;
 
@@ -10,6 +11,7 @@ pub(crate) struct Harvest {
     custom_events_timer: HarvestTimer,
     txn_events_timer: HarvestTimer,
     error_events_timer: HarvestTimer,
+    pub(crate) txn_events: Vec<AnalyticsEventWithAttrs>,
 }
 
 impl Harvest {
@@ -25,6 +27,7 @@ impl Harvest {
             custom_events_timer: new_timer(run.custom_events_period),
             txn_events_timer: new_timer(run.txn_events_period),
             error_events_timer: new_timer(run.error_events_period),
+            txn_events: vec![],
         }
     }
 
@@ -40,11 +43,7 @@ impl Harvest {
             eprintln!("Processing custom events...");
         }
         if self.txn_events_timer.ready(now, force) {
-            use crate::analytics_events::{
-                AgentAttrs, AnalyticsEvent, AnalyticsEventWithAttrs, CollectorPayload, Properties,
-                TransactionEvent, TransactionShared, UserAttrs,
-            };
-            use std::time::{SystemTime, UNIX_EPOCH};
+            use crate::analytics_events::{CollectorPayload, Properties};
             eprintln!("Processing txn events...");
             // TODO: handle errors
             collector_request(
@@ -53,35 +52,10 @@ impl Harvest {
                 &CollectorPayload(
                     run.agent_run_id.clone(),
                     Properties {
-                        // TODO: use cap
-                        reservoir_size: 833,
-                        events_seen: 1,
+                        reservoir_size: self.txn_events.capacity() as i32,
+                        events_seen: self.txn_events.len() as i32,
                     },
-                    vec![AnalyticsEventWithAttrs(
-                        AnalyticsEvent::Transaction(TransactionEvent {
-                            name: "OtherTransaction/Go/test".to_owned(),
-                            timestamp: (SystemTime::now() - Duration::from_secs(20))
-                                .duration_since(UNIX_EPOCH)
-                                .unwrap()
-                                .as_secs() as i64,
-                            apdex_perf_zone: None,
-                            error: false,
-                            shared: TransactionShared {
-                                duration: 20.0,
-                                queue_duration: None,
-                                external_call_count: None,
-                                external_duration: None,
-                                database_call_count: None,
-                                database_duration: None,
-                                synthetics_resource_id: None,
-                                synthetics_job_id: None,
-                                synthetics_monitor_id: None,
-                            },
-                            total_time: 20.0,
-                        }),
-                        UserAttrs {},
-                        AgentAttrs {},
-                    )],
+                    self.txn_events.clone(),
                 ),
             )
             .unwrap();
