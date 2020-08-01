@@ -161,24 +161,3 @@ impl fmt::Debug for ApplicationInner {
             .finish()
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    use std::thread::sleep;
-    use std::time::Duration;
-
-    #[test]
-    fn it_works() {
-        let license = std::env::var("NEW_RELIC_LICENSE_KEY").unwrap();
-        let daemon = Daemon::new("rust-test", &license);
-        let app = daemon.application();
-        for _ in 0..120 {
-            let txn = app.start_transaction("test");
-            sleep(Duration::from_millis(500));
-            drop(txn);
-            sleep(Duration::from_millis(500));
-        }
-    }
-}
