@@ -31,6 +31,7 @@ impl Drop for Transaction {
         if let Some(app) = self.app.upgrade() {
             let mut state = app.state.lock();
             if let AppState::Running { run: _, harvest } = &mut *state {
+                let name = format!("OtherTransaction/Go/{}", self.name);
                 let duration = Instant::now()
                     .checked_duration_since(self.start)
                     .unwrap_or(Duration::from_secs(0));
@@ -38,7 +39,7 @@ impl Drop for Transaction {
                 let start = end - duration;
                 let attrs = AnalyticsEventWithAttrs(
                     AnalyticsEvent::Transaction(TransactionEvent {
-                        name: format!("OtherTransaction/Go/{}", self.name),
+                        name: name.clone(),
                         timestamp: start.duration_since(UNIX_EPOCH).unwrap().as_secs() as i64,
                         apdex_perf_zone: None,
                         error: false,
@@ -59,6 +60,31 @@ impl Drop for Transaction {
                     AgentAttrs {},
                 );
                 harvest.txn_events.push(attrs);
+                harvest.metric_table.add_duration(
+                    &name,
+                    None,
+                    duration,
+                    Duration::from_secs(0),
+                    true,
+                );
+                harvest.metric_table.add_duration(
+                    "OtherTransaction/all",
+                    None,
+                    duration,
+                    Duration::from_secs(0),
+                    true,
+                );
+                let total_name = format!("OtherTransactionTotalTime/Go/{}", self.name);
+                harvest
+                    .metric_table
+                    .add_duration(&total_name, None, duration, duration, false);
+                harvest.metric_table.add_duration(
+                    "OtherTransactionTotalTime",
+                    None,
+                    duration,
+                    duration,
+                    true,
+                );
             }
         }
     }

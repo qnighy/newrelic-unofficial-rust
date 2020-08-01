@@ -3,6 +3,7 @@ use std::time::{Duration, Instant};
 use crate::analytics_events::AnalyticsEventWithAttrs;
 use crate::app_run::AppRun;
 use crate::collector::collector_request;
+use crate::metrics::MetricTable;
 
 #[derive(Debug)]
 pub(crate) struct Harvest {
@@ -12,6 +13,7 @@ pub(crate) struct Harvest {
     txn_events_timer: HarvestTimer,
     error_events_timer: HarvestTimer,
     pub(crate) txn_events: Vec<AnalyticsEventWithAttrs>,
+    pub(crate) metric_table: MetricTable,
 }
 
 impl Harvest {
@@ -28,6 +30,7 @@ impl Harvest {
             txn_events_timer: new_timer(run.txn_events_period),
             error_events_timer: new_timer(run.error_events_period),
             txn_events: vec![],
+            metric_table: MetricTable::new(),
         }
     }
 
@@ -35,6 +38,10 @@ impl Harvest {
         let now = Instant::now();
         if self.metrics_traces_timer.ready(now, force) {
             eprintln!("Processing metrics traces...");
+            let metric_table = std::mem::replace(&mut self.metric_table, MetricTable::new());
+            let payload = metric_table.payload(&run.agent_run_id);
+            // TODO: handle errors
+            collector_request(run, "metric_data", &payload).unwrap();
         }
         if self.span_events_timer.ready(now, force) {
             eprintln!("Processing span events...");
@@ -44,7 +51,9 @@ impl Harvest {
         }
         if self.txn_events_timer.ready(now, force) {
             use crate::analytics_events::{CollectorPayload, Properties};
+
             eprintln!("Processing txn events...");
+            let txn_events = std::mem::replace(&mut self.txn_events, vec![]);
             // TODO: handle errors
             collector_request(
                 run,
@@ -52,10 +61,10 @@ impl Harvest {
                 &CollectorPayload(
                     run.agent_run_id.clone(),
                     Properties {
-                        reservoir_size: self.txn_events.capacity() as i32,
-                        events_seen: self.txn_events.len() as i32,
+                        reservoir_size: txn_events.capacity() as i32,
+                        events_seen: txn_events.len() as i32,
                     },
-                    self.txn_events.clone(),
+                    txn_events.clone(),
                 ),
             )
             .unwrap();
