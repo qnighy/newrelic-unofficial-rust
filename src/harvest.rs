@@ -1,3 +1,6 @@
+// Copyright 2020 New Relic Corporation. (for the original go-agent)
+// Copyright 2020 Masaki Hara.
+
 use std::time::{Duration, Instant};
 
 use crate::analytics_events::AnalyticsEventWithAttrs;

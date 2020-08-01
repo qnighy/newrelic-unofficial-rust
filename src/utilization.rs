@@ -1,3 +1,6 @@
+// Copyright 2020 New Relic Corporation. (for the original go-agent)
+// Copyright 2020 Masaki Hara.
+
 use serde::{Deserialize, Serialize};
 use sysinfo::SystemExt;
 

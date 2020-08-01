@@ -1,3 +1,6 @@
+// Copyright 2020 New Relic Corporation. (for the original go-agent)
+// Copyright 2020 Masaki Hara.
+
 use attohttpc::body::Bytes;
 use attohttpc::header::HeaderName;
 use flate2::write::GzEncoder;

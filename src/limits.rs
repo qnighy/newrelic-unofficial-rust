@@ -1,3 +1,6 @@
+// Copyright 2020 New Relic Corporation. (for the original go-agent)
+// Copyright 2020 Masaki Hara.
+
 use std::time::Duration;
 
 pub(crate) const FIXED_HARVEST_PERIOD: Duration = Duration::from_secs(60);
