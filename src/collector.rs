@@ -101,7 +101,7 @@ struct PreconnectRequest {
     high_security: bool,
 }
 
-pub(crate) fn collector_request<T>(run: &AppRun, command: &str, payload: &T) -> anyhow::Result<()>
+pub(crate) fn collector_request<T>(run: &AppRun, command: &str, payload: &T) -> Result<(), RpmError>
 where
     T: Serialize,
 {
