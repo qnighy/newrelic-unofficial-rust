@@ -10,6 +10,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use thiserror::Error;
 
+use self::settings::Settings;
 use crate::app_run::AppRun;
 use crate::config::Config;
 use crate::connect_reply::{ConnectReply, EventHarvestConfig, HarvestLimits, PreconnectReply};
@@ -17,6 +18,8 @@ use crate::limits::{
     DEFAULT_REPORT_PERIOD_MS, MAX_CUSTOM_EVENTS, MAX_ERROR_EVENTS, MAX_PAYLOAD_SIZE, MAX_TXN_EVENTS,
 };
 use crate::utilization::UtilizationData;
+
+mod settings;
 
 #[derive(Error, Debug)]
 pub(crate) enum RpmError {
@@ -53,14 +56,6 @@ struct ConnectRequest {
     // security_policies: Option<SecurityPolicies>,
     metadata: HashMap<String, String>,
     event_harvest_config: EventHarvestConfig,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct Settings {
-    #[serde(rename = "AppName")]
-    app_name: String,
-    #[serde(flatten)]
-    remain: HashMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -125,199 +120,7 @@ pub(crate) fn connect_attempt(config: &Config) -> anyhow::Result<AppRun> {
             agent_version: "3.8.0".to_owned(),
             host: utilization.hostname().to_owned(),
             display_host: config.host_display_name.clone(),
-            settings: Settings {
-                app_name: config.app_name.clone(),
-                remain: vec![
-                    (
-                        "Attributes".to_owned(),
-                        serde_json::json!({
-                            "Enabled": true,
-                            "Exclude": null,
-                            "Include": null
-                        }),
-                    ),
-                    (
-                        "BrowserMonitoring".to_owned(),
-                        serde_json::json!({
-                          "Attributes": {
-                            "Enabled": false,
-                            "Exclude": null,
-                            "Include": null
-                          },
-                          "Enabled": true
-                        }),
-                    ),
-                    (
-                        "CrossApplicationTracer".to_owned(),
-                        serde_json::json!({
-                          "Enabled": true
-                        }),
-                    ),
-                    (
-                        "CustomInsightsEvents".to_owned(),
-                        serde_json::json!({
-                          "Enabled": true
-                        }),
-                    ),
-                    (
-                        "DatastoreTracer".to_owned(),
-                        serde_json::json!({
-                          "DatabaseNameReporting": {
-                            "Enabled": true
-                          },
-                          "InstanceReporting": {
-                            "Enabled": true
-                          },
-                          "QueryParameters": {
-                            "Enabled": true
-                          },
-                          "SlowQuery": {
-                            "Enabled": true,
-                            "Threshold": 10000000
-                          }
-                        }),
-                    ),
-                    (
-                        "DistributedTracer".to_owned(),
-                        serde_json::json!({
-                          "Enabled": false,
-                          "ExcludeNewRelicHeader": false
-                        }),
-                    ),
-                    ("Enabled".to_owned(), serde_json::json!(true)),
-                    ("Error".to_owned(), serde_json::json!(null)),
-                    (
-                        "ErrorCollector".to_owned(),
-                        serde_json::json!({
-                          "Attributes": {
-                            "Enabled": true,
-                            "Exclude": null,
-                            "Include": null
-                          },
-                          "CaptureEvents": true,
-                          "Enabled": true,
-                          "IgnoreStatusCodes": [
-                            0,
-                            5,
-                            404
-                          ],
-                          "RecordPanics": false
-                        }),
-                    ),
-                    (
-                        "Heroku".to_owned(),
-                        serde_json::json!({
-                          "DynoNamePrefixesToShorten": [
-                            "scheduler",
-                            "run"
-                          ],
-                          "UseDynoNames": true
-                        }),
-                    ),
-                    ("HighSecurity".to_owned(), serde_json::json!(false)),
-                    ("Host".to_owned(), serde_json::json!("")),
-                    ("HostDisplayName".to_owned(), serde_json::json!("")),
-                    (
-                        "InfiniteTracing".to_owned(),
-                        serde_json::json!({
-                          "SpanEvents": {
-                            "QueueSize": 10000
-                          },
-                          "TraceObserver": {
-                            "Host": "",
-                            "Port": 443
-                          }
-                        }),
-                    ),
-                    ("Labels".to_owned(), serde_json::json!({})),
-                    ("Logger".to_owned(), serde_json::json!(null)),
-                    (
-                        "RuntimeSampler".to_owned(),
-                        serde_json::json!({
-                          "Enabled": true
-                        }),
-                    ),
-                    ("SecurityPoliciesToken".to_owned(), serde_json::json!("")),
-                    (
-                        "ServerlessMode".to_owned(),
-                        serde_json::json!({
-                          "AccountID": "",
-                          "ApdexThreshold": 500000000,
-                          "Enabled": false,
-                          "PrimaryAppID": "",
-                          "TrustedAccountKey": ""
-                        }),
-                    ),
-                    (
-                        "SpanEvents".to_owned(),
-                        serde_json::json!({
-                          "Attributes": {
-                            "Enabled": true,
-                            "Exclude": null,
-                            "Include": null
-                          },
-                          "Enabled": true
-                        }),
-                    ),
-                    (
-                        "TransactionEvents".to_owned(),
-                        serde_json::json!({
-                          "Attributes": {
-                            "Enabled": true,
-                            "Exclude": null,
-                            "Include": null
-                          },
-                          "Enabled": true,
-                          "MaxSamplesStored": 10000
-                        }),
-                    ),
-                    (
-                        "TransactionTracer".to_owned(),
-                        serde_json::json!({
-                          "Attributes": {
-                            "Enabled": true,
-                            "Exclude": null,
-                            "Include": null
-                          },
-                          "Enabled": true,
-                          "Segments": {
-                            "Attributes": {
-                              "Enabled": true,
-                              "Exclude": null,
-                              "Include": null
-                            },
-                            "StackTraceThreshold": 500000000,
-                            "Threshold": 2000000
-                          },
-                          "Threshold": {
-                            "Duration": 500000000,
-                            "IsApdexFailing": true
-                          }
-                        }),
-                    ),
-                    ("Transport".to_owned(), serde_json::json!(null)),
-                    (
-                        "Utilization".to_owned(),
-                        serde_json::json!({
-                          "BillingHostname": "",
-                          "DetectAWS": true,
-                          "DetectAzure": true,
-                          "DetectDocker": true,
-                          "DetectGCP": true,
-                          "DetectKubernetes": true,
-                          "DetectPCF": true,
-                          "LogicalProcessors": 0,
-                          "TotalRAMMIB": 0
-                        }),
-                    ),
-                    (
-                        "browser_monitoring.loader".to_owned(),
-                        serde_json::json!("rum"),
-                    ),
-                ]
-                .into_iter()
-                .collect(),
-            },
+            settings: Settings::new(config),
             app_name: config.app_name.split(";").map(|s| s.to_owned()).collect(),
             high_security: false,
             labels: vec![],
