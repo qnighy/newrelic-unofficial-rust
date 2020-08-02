@@ -1,7 +1,7 @@
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use crate::config::{UtilizationConfig, Config};
+use crate::config::{Config, UtilizationConfig};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "PascalCase")]
@@ -13,6 +13,8 @@ pub(super) struct Settings {
     host_display_name: Option<String>,
     utilization: UtilizationSettings,
     host: Option<String>,
+    // Tell who we are
+    unofficial_agent_repository: String,
 }
 
 impl Settings {
@@ -24,6 +26,8 @@ impl Settings {
             host_display_name: config.host_display_name.clone(),
             utilization: UtilizationSettings::new(&config.utilization),
             host: config.host.clone(),
+            unofficial_agent_repository: "https://github.com/qnighy/newrelic-unofficial-rust"
+                .to_owned(),
         }
     }
 }
