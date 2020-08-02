@@ -40,10 +40,7 @@ impl Daemon {
         config.validate()?;
 
         let (wake, wake_recv) = mpsc::sync_channel::<()>(1);
-        let inner = Arc::new(ApplicationInner::new(
-            &config,
-            wake,
-        ));
+        let inner = Arc::new(ApplicationInner::new(&config, wake));
         let handle = {
             let inner = inner.clone();
             thread::spawn(move || {
