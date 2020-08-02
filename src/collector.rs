@@ -123,7 +123,14 @@ pub(crate) fn connect_attempt(config: &Config) -> anyhow::Result<AppRun> {
             settings: Settings::new(config),
             app_name: config.app_name.split(";").map(|s| s.to_owned()).collect(),
             high_security: false,
-            labels: vec![],
+            labels: config
+                .labels
+                .iter()
+                .map(|(k, v)| Label {
+                    label_type: k.clone(),
+                    label_value: v.clone(),
+                })
+                .collect(),
             environment: vec![
                 // TODO
                 ("runtime.Compiler".to_owned(), "gc".to_owned().into()),
