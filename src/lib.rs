@@ -174,7 +174,7 @@ impl ApplicationInner {
             let mut state = self.state.lock();
             *state = AppState::Running {
                 run: Arc::new(run),
-                harvest: harvest,
+                harvest,
             };
         }
         loop {

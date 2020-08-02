@@ -67,12 +67,10 @@ impl Config {
                 return Err(ConfigError::AppNameLimit);
             }
         } else {
+            #[allow(clippy::redundant_field_names)]
             if self.license.len() != LICENSE_LENGTH && !self.license.is_empty() {
                 return Err(ConfigError::LicenseLength);
             }
-        }
-        if !self.app_name.is_empty() || self.enabled {
-            if self.app_name.len() != LICENSE_LENGTH {}
         }
 
         Ok(())
