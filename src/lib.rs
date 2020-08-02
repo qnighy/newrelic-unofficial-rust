@@ -27,7 +27,7 @@ mod utilization;
 
 #[derive(Debug)]
 pub struct Daemon {
-    inner: Arc<ApplicationInner>,
+    app: Application,
     handle: Option<JoinHandle<()>>,
 }
 
@@ -39,36 +39,35 @@ impl Daemon {
     pub(crate) fn from_config(config: &Config) -> Result<Self, crate::config::ConfigError> {
         config.validate()?;
 
-        let inner = Arc::new(ApplicationInner::new(&config));
+        let app = Application::new(&config);
         if !config.enabled {
-            return Ok(Daemon {
-                inner,
-                handle: None,
-            });
+            return Ok(Daemon { app, handle: None });
         }
         let handle = {
-            let inner = inner.clone();
+            let inner = app.inner.clone();
             thread::spawn(move || {
                 inner.run();
             })
         };
 
         Ok(Daemon {
-            inner,
+            app,
             handle: Some(handle),
         })
     }
 
-    pub fn application(&self) -> Application {
-        Application {
-            inner: self.inner.clone(),
-        }
+    pub fn application(&self) -> &Application {
+        &self.app
+    }
+
+    pub fn start_transaction(&self, name: &str) -> Transaction {
+        self.app.start_transaction(name)
     }
 }
 
 impl std::ops::Drop for Daemon {
     fn drop(&mut self) {
-        self.inner.shutdown.shutdown();
+        self.app.inner.shutdown.shutdown();
         if let Some(handle) = self.handle.take() {
             let result = handle.join();
             if let Err(e) = result {
@@ -85,6 +84,12 @@ pub struct Application {
 }
 
 impl Application {
+    fn new(config: &Config) -> Self {
+        Self {
+            inner: Arc::new(ApplicationInner::new(config)),
+        }
+    }
+
     pub fn start_transaction(&self, name: &str) -> Transaction {
         Transaction::new(&self.inner, name)
     }
