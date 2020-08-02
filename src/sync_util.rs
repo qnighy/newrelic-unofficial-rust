@@ -15,9 +15,9 @@ pub(crate) struct Shutdown {
 impl Shutdown {
     pub(crate) fn new() -> Self {
         Self {
-                shutdown: Mutex::new(false),
-                cond: Condvar::new(),
-            }
+            shutdown: Mutex::new(false),
+            cond: Condvar::new(),
+        }
     }
 
     pub(crate) fn shutdown(&self) {

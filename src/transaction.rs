@@ -62,13 +62,9 @@ impl Drop for Transaction {
                 AgentAttrs {},
             );
             harvest.txn_events.push(attrs);
-            harvest.metric_table.add_duration(
-                &name,
-                None,
-                duration,
-                Duration::from_secs(0),
-                true,
-            );
+            harvest
+                .metric_table
+                .add_duration(&name, None, duration, Duration::from_secs(0), true);
             harvest.metric_table.add_duration(
                 "OtherTransaction/all",
                 None,
