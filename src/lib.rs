@@ -2,7 +2,7 @@
 // Copyright 2020 Masaki Hara.
 
 use parking_lot::Mutex;
-use std::sync::{Arc, Weak};
+use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
@@ -61,7 +61,7 @@ impl Daemon {
 
     pub fn application(&self) -> Application {
         Application {
-            inner: Arc::downgrade(&self.inner),
+            inner: self.inner.clone(),
         }
     }
 }
@@ -81,7 +81,7 @@ impl std::ops::Drop for Daemon {
 
 #[derive(Debug, Clone)]
 pub struct Application {
-    inner: Weak<ApplicationInner>,
+    inner: Arc<ApplicationInner>,
 }
 
 impl Application {
