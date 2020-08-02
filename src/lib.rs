@@ -63,11 +63,15 @@ impl Daemon {
     pub fn start_transaction(&self, name: &str) -> Transaction {
         self.app.start_transaction(name)
     }
+
+    pub fn shutdown(&self) {
+        self.app.shutdown()
+    }
 }
 
 impl std::ops::Drop for Daemon {
     fn drop(&mut self) {
-        self.app.inner.shutdown.shutdown();
+        self.shutdown();
         if let Some(handle) = self.handle.take() {
             let result = handle.join();
             if let Err(e) = result {
@@ -92,6 +96,10 @@ impl Application {
 
     pub fn start_transaction(&self, name: &str) -> Transaction {
         Transaction::new(&self.inner, name)
+    }
+
+    pub fn shutdown(&self) {
+        self.inner.shutdown.shutdown();
     }
 }
 
