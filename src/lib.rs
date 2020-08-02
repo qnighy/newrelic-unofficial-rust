@@ -2,7 +2,6 @@
 // Copyright 2020 Masaki Hara.
 
 use parking_lot::Mutex;
-use std::fmt;
 use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering::Relaxed;
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender};
@@ -41,7 +40,10 @@ impl Daemon {
         config.validate()?;
 
         let (wake, wake_recv) = mpsc::sync_channel::<()>(1);
-        let inner = Arc::new(ApplicationInner::new(&config.app_name, &config.license, wake));
+        let inner = Arc::new(ApplicationInner::new(
+            &config,
+            wake,
+        ));
         let handle = {
             let inner = inner.clone();
             thread::spawn(move || {
@@ -87,9 +89,9 @@ impl Application {
     }
 }
 
+#[derive(Debug)]
 struct ApplicationInner {
-    name: String,
-    license: String,
+    config: Config,
     state: Mutex<AppState>,
     shutdown: AtomicBool,
     wake: SyncSender<()>,
@@ -103,10 +105,9 @@ enum AppState {
 }
 
 impl ApplicationInner {
-    fn new(name: &str, license: &str, wake: SyncSender<()>) -> Self {
+    fn new(config: &Config, wake: SyncSender<()>) -> Self {
         ApplicationInner {
-            name: name.to_owned(),
-            license: license.to_owned(),
+            config: config.clone(),
             state: Mutex::new(AppState::Init),
             shutdown: AtomicBool::new(false),
             wake,
@@ -115,7 +116,7 @@ impl ApplicationInner {
 
     fn run(self: &Arc<Self>, wake_recv: Receiver<()>) {
         // TODO: handle errors
-        let run = crate::collector::connect_attempt(&self.name, &self.license).unwrap();
+        let run = crate::collector::connect_attempt(&self.config).unwrap();
         eprintln!("run = {:#?}", run);
         let harvest = Harvest::new(&run);
         {
@@ -148,23 +149,5 @@ impl ApplicationInner {
         if let AppState::Running { run, harvest } = &mut old_state {
             harvest.harvest(run, true);
         }
-    }
-}
-
-impl fmt::Debug for ApplicationInner {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        struct LicensePlaceholder;
-        impl fmt::Debug for LicensePlaceholder {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                f.write_str("<filtered>")
-            }
-        }
-        f.debug_struct("Application")
-            .field("name", &self.name)
-            .field("license", &LicensePlaceholder)
-            .field("state", &self.state)
-            .field("shutdown", &self.shutdown)
-            .field("wake", &self.wake)
-            .finish()
     }
 }

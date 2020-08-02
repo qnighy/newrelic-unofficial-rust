@@ -11,6 +11,7 @@ use std::collections::HashMap;
 use thiserror::Error;
 
 use crate::app_run::AppRun;
+use crate::config::Config;
 use crate::connect_reply::{ConnectReply, EventHarvestConfig, HarvestLimits, PreconnectReply};
 use crate::limits::{
     DEFAULT_REPORT_PERIOD_MS, MAX_CUSTOM_EVENTS, MAX_ERROR_EVENTS, MAX_PAYLOAD_SIZE, MAX_TXN_EVENTS,
@@ -92,7 +93,7 @@ where
     Ok(())
 }
 
-pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<AppRun> {
+pub(crate) fn connect_attempt(config: &Config) -> anyhow::Result<AppRun> {
     let resp_pre: PreconnectReply = collector_request_json(Request {
         method: "preconnect",
         // TODO: config.host
@@ -100,7 +101,7 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<AppRu
         host: "collector.newrelic.com",
         run_id: None,
         max_payload_size: MAX_PAYLOAD_SIZE,
-        license: license,
+        license: &config.license,
         request_headers_map: &HashMap::new(),
         data: &vec![PreconnectRequest {
             security_policies_token: "".to_owned(),
@@ -114,7 +115,7 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<AppRu
         host: &resp_pre.redirect_host,
         run_id: None,
         max_payload_size: MAX_PAYLOAD_SIZE,
-        license: license,
+        license: &config.license,
         request_headers_map: &HashMap::new(),
         data: &vec![ConnectRequest {
             pid: std::process::id(),
@@ -123,9 +124,9 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<AppRu
             // TODO
             agent_version: "3.8.0".to_owned(),
             host: utilization.hostname().to_owned(),
-            display_host: None,
+            display_host: config.host_display_name.clone(),
             settings: Settings {
-                app_name: name.to_owned(),
+                app_name: config.app_name.clone(),
                 remain: vec![
                     (
                         "Attributes".to_owned(),
@@ -317,7 +318,7 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<AppRu
                 .into_iter()
                 .collect(),
             },
-            app_name: name.split(";").map(|s| s.to_owned()).collect(),
+            app_name: config.app_name.split(";").map(|s| s.to_owned()).collect(),
             high_security: false,
             labels: vec![],
             environment: vec![
@@ -332,7 +333,7 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<AppRu
                 // TODO
                 ("runtime.NumCPU".to_owned(), 4.into()),
             ],
-            identifier: name.to_owned(),
+            identifier: config.app_name.clone(),
             utilization,
             metadata: HashMap::new(),
             event_harvest_config: EventHarvestConfig {
@@ -348,7 +349,7 @@ pub(crate) fn connect_attempt(name: &str, license: &str) -> anyhow::Result<AppRu
     })?;
     // eprintln!("resp = {:#?}", resp);
 
-    Ok(AppRun::new(license, &resp_pre, &resp))
+    Ok(AppRun::new(&config.license, &resp_pre, &resp))
 }
 
 #[derive(Debug)]
