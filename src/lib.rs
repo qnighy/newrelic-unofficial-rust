@@ -100,7 +100,7 @@ struct ApplicationInner {
 #[derive(Debug)]
 enum AppState {
     Init,
-    Running { run: AppRun, harvest: Harvest },
+    Running { run: Arc<AppRun>, harvest: Harvest },
     Dead,
 }
 
@@ -160,15 +160,24 @@ impl ApplicationInner {
         {
             let mut state = self.state.lock();
             *state = AppState::Running {
-                run,
+                run: Arc::new(run),
                 harvest: harvest,
             };
         }
         loop {
             self.shutdown.sleep(Duration::from_secs(1))?;
-            let mut state = self.state.lock();
-            if let AppState::Running { run, harvest } = &mut *state {
-                harvest.harvest(run, false);
+            // Only invoke Harvest::ready() during locking.
+            let ready = {
+                let mut state = self.state.lock();
+                if let AppState::Running { run, harvest } = &mut *state {
+                    Some((Arc::clone(run), harvest.ready(run, false)))
+                } else {
+                    None
+                }
+            };
+            // Do harvest after unlock
+            if let Some((run, ready)) = ready {
+                ready.harvest(&run);
             }
         }
     }
@@ -180,7 +189,8 @@ impl ApplicationInner {
             std::mem::replace(&mut *state, AppState::Dead)
         };
         if let AppState::Running { run, harvest } = &mut old_state {
-            harvest.harvest(run, true);
+            let ready = harvest.ready(run, true);
+            ready.harvest(run);
         }
     }
 }

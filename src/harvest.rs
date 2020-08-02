@@ -37,14 +37,16 @@ impl Harvest {
         }
     }
 
-    pub(crate) fn harvest(&mut self, run: &AppRun, force: bool) {
+    // TODO: _run may be totally unnecessary.
+    pub(crate) fn ready(&mut self, _run: &AppRun, force: bool) -> HarvestReady {
         let now = Instant::now();
+        let mut ready = HarvestReady::default();
         if self.metrics_traces_timer.ready(now, force) {
             eprintln!("Processing metrics traces...");
-            let metric_table = std::mem::replace(&mut self.metric_table, MetricTable::new());
-            let payload = metric_table.payload(&run.agent_run_id);
-            // TODO: handle errors
-            collector_request(run, "metric_data", &payload).unwrap();
+            ready.metric_table = Some(std::mem::replace(
+                &mut self.metric_table,
+                MetricTable::new(),
+            ));
         }
         if self.span_events_timer.ready(now, force) {
             eprintln!("Processing span events...");
@@ -53,28 +55,13 @@ impl Harvest {
             eprintln!("Processing custom events...");
         }
         if self.txn_events_timer.ready(now, force) {
-            use crate::analytics_events::{CollectorPayload, Properties};
-
             eprintln!("Processing txn events...");
-            let txn_events = std::mem::replace(&mut self.txn_events, vec![]);
-            // TODO: handle errors
-            collector_request(
-                run,
-                "analytic_event_data",
-                &CollectorPayload(
-                    run.agent_run_id.clone(),
-                    Properties {
-                        reservoir_size: txn_events.capacity() as i32,
-                        events_seen: txn_events.len() as i32,
-                    },
-                    txn_events.clone(),
-                ),
-            )
-            .unwrap();
+            ready.txn_events = Some(std::mem::replace(&mut self.txn_events, vec![]));
         }
         if self.error_events_timer.ready(now, force) {
             eprintln!("Processing error events...");
         }
+        ready
     }
 }
 
@@ -91,6 +78,42 @@ impl HarvestTimer {
             true
         } else {
             false
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub(crate) struct HarvestReady {
+    pub(crate) txn_events: Option<Vec<AnalyticsEventWithAttrs>>,
+    pub(crate) metric_table: Option<MetricTable>,
+}
+
+impl HarvestReady {
+    pub(crate) fn harvest(self, run: &AppRun) {
+        if let Some(metric_table) = self.metric_table {
+            eprintln!("Sending metrics traces...");
+            let payload = metric_table.payload(&run.agent_run_id);
+            // TODO: handle errors
+            collector_request(run, "metric_data", &payload).unwrap();
+        }
+        if let Some(txn_events) = self.txn_events {
+            use crate::analytics_events::{CollectorPayload, Properties};
+
+            eprintln!("Sending txn events...");
+            // TODO: handle errors
+            collector_request(
+                run,
+                "analytic_event_data",
+                &CollectorPayload(
+                    run.agent_run_id.clone(),
+                    Properties {
+                        reservoir_size: txn_events.capacity() as i32,
+                        events_seen: txn_events.len() as i32,
+                    },
+                    txn_events.clone(),
+                ),
+            )
+            .unwrap();
         }
     }
 }
