@@ -2,16 +2,15 @@
 // Copyright 2020 Masaki Hara.
 
 use parking_lot::Mutex;
-use std::sync::atomic::AtomicBool;
-use std::sync::atomic::Ordering::Relaxed;
-use std::sync::mpsc::{self, Receiver, RecvTimeoutError, SyncSender};
 use std::sync::{Arc, Weak};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use crate::app_run::AppRun;
+use crate::collector::RpmError;
 pub use crate::config::Config;
 use crate::harvest::Harvest;
+use crate::sync_util::Shutdown;
 pub use crate::transaction::Transaction;
 
 mod analytics_events;
@@ -22,6 +21,7 @@ mod connect_reply;
 mod harvest;
 mod limits;
 mod metrics;
+mod sync_util;
 mod transaction;
 mod utilization;
 
@@ -39,8 +39,7 @@ impl Daemon {
     pub(crate) fn from_config(config: &Config) -> Result<Self, crate::config::ConfigError> {
         config.validate()?;
 
-        let (wake, wake_recv) = mpsc::sync_channel::<()>(1);
-        let inner = Arc::new(ApplicationInner::new(&config, wake));
+        let inner = Arc::new(ApplicationInner::new(&config));
         if !config.enabled {
             return Ok(Daemon {
                 inner,
@@ -50,7 +49,7 @@ impl Daemon {
         let handle = {
             let inner = inner.clone();
             thread::spawn(move || {
-                inner.run(wake_recv);
+                inner.run();
             })
         };
 
@@ -69,8 +68,7 @@ impl Daemon {
 
 impl std::ops::Drop for Daemon {
     fn drop(&mut self) {
-        self.inner.shutdown.store(true, Relaxed);
-        let _ = self.inner.wake.try_send(());
+        self.inner.shutdown.shutdown();
         if let Some(handle) = self.handle.take() {
             let result = handle.join();
             if let Err(e) = result {
@@ -96,8 +94,7 @@ impl Application {
 struct ApplicationInner {
     config: Config,
     state: Mutex<AppState>,
-    shutdown: AtomicBool,
-    wake: SyncSender<()>,
+    shutdown: Shutdown,
 }
 
 #[derive(Debug)]
@@ -108,7 +105,7 @@ enum AppState {
 }
 
 impl ApplicationInner {
-    fn new(config: &Config, wake: SyncSender<()>) -> Self {
+    fn new(config: &Config) -> Self {
         let state = if config.enabled {
             AppState::Init
         } else {
@@ -117,14 +114,47 @@ impl ApplicationInner {
         ApplicationInner {
             config: config.clone(),
             state: Mutex::new(state),
-            shutdown: AtomicBool::new(false),
-            wake,
+            shutdown: Shutdown::new(),
         }
     }
 
-    fn run(self: &Arc<Self>, wake_recv: Receiver<()>) {
-        // TODO: handle errors
-        let run = crate::collector::connect_attempt(&self.config).unwrap();
+    fn run(self: &Arc<Self>) {
+        let mut attempt: u32 = 0;
+        loop {
+            let e = match crate::collector::connect_attempt(&self.config) {
+                Ok(run) => {
+                    attempt = 0;
+                    match self.run1(run) {
+                        Ok(void) => match void {},
+                        Err(e @ RpmError::Shutdown(..)) => {
+                            self.shutdown();
+                            e
+                        }
+                        Err(e) => e,
+                    }
+                }
+                Err(e) => {
+                    attempt = attempt.saturating_add(1);
+                    e
+                }
+            };
+            if e.is_disconnect() {
+                log::error!("application disconnected: {}", e);
+                break;
+            } else {
+                let backoff_time = connect_backoff_time(attempt);
+                if let Err(_shutdown) = self.shutdown.sleep(backoff_time) {
+                    break;
+                }
+            }
+        }
+        {
+            let mut state = self.state.lock();
+            *state = AppState::Dead;
+        }
+    }
+
+    fn run1(self: &Arc<Self>, run: AppRun) -> Result<Void, RpmError> {
         eprintln!("run = {:#?}", run);
         let harvest = Harvest::new(&run);
         {
@@ -134,21 +164,16 @@ impl ApplicationInner {
                 harvest: harvest,
             };
         }
-        while !self.shutdown.load(Relaxed) {
-            let result = wake_recv.recv_timeout(Duration::from_secs(1));
-            match result {
-                Err(RecvTimeoutError::Disconnected) => {
-                    break;
-                }
-                Err(RecvTimeoutError::Timeout) => {
-                    let mut state = self.state.lock();
-                    if let AppState::Running { run, harvest } = &mut *state {
-                        harvest.harvest(run, false);
-                    }
-                }
-                Ok(()) => {}
+        loop {
+            self.shutdown.sleep(Duration::from_secs(1))?;
+            let mut state = self.state.lock();
+            if let AppState::Running { run, harvest } = &mut *state {
+                harvest.harvest(run, false);
             }
         }
+    }
+
+    fn shutdown(self: &Arc<Self>) {
         eprintln!("shutting down...");
         let mut old_state = {
             let mut state = self.state.lock();
@@ -158,4 +183,22 @@ impl ApplicationInner {
             harvest.harvest(run, true);
         }
     }
+}
+
+enum Void {}
+
+fn connect_backoff_time(attempt: u32) -> Duration {
+    const CONNECT_BACKOFF_TIMES: &[Duration] = &[
+        Duration::from_secs(15),
+        Duration::from_secs(15),
+        Duration::from_secs(30),
+        Duration::from_secs(60),
+        Duration::from_secs(120),
+        Duration::from_secs(300),
+    ];
+    const BACKOFF_REPEAT: Duration = CONNECT_BACKOFF_TIMES[CONNECT_BACKOFF_TIMES.len() - 1];
+    CONNECT_BACKOFF_TIMES
+        .get(attempt as usize)
+        .copied()
+        .unwrap_or(BACKOFF_REPEAT)
 }

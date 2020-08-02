@@ -35,6 +35,36 @@ pub(crate) enum RpmError {
     },
     #[error("response code: {status}: {body}")]
     StatusError { status: u16, body: String },
+    #[error("shutdown")]
+    Shutdown(#[from] crate::sync_util::ShutdownError),
+}
+
+impl RpmError {
+    pub(crate) fn is_disconnect(&self) -> bool {
+        if let RpmError::StatusError { status, .. } = self {
+            *status == 410
+        } else if let RpmError::Shutdown(..) = self {
+            true
+        } else {
+            false
+        }
+    }
+
+    // pub(crate) fn is_restart_exception(&self) -> bool {
+    //     if let RpmError::StatusError { status, .. } = self {
+    //         *status == 401 || *status == 409
+    //     } else {
+    //         false
+    //     }
+    // }
+
+    // pub(crate) fn should_save_harvest_data(&self) -> bool {
+    //     if let RpmError::StatusError { status, .. } = self {
+    //         *status == 408 || *status == 429 || *status == 500 || *status == 503
+    //     } else {
+    //         false
+    //     }
+    // }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -88,7 +118,7 @@ where
     Ok(())
 }
 
-pub(crate) fn connect_attempt(config: &Config) -> anyhow::Result<AppRun> {
+pub(crate) fn connect_attempt(config: &Config) -> Result<AppRun, RpmError> {
     let resp_pre: PreconnectReply = collector_request_json(Request {
         method: "preconnect",
         host: &preconnect_host(config),
