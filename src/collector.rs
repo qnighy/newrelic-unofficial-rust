@@ -239,3 +239,56 @@ fn preconnect_host(config: &Config) -> String {
     }
     "collector.newrelic.com".to_owned()
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_preconnect_host_base_case() {
+        #[derive(Debug)]
+        struct TestCase {
+            license: &'static str,
+            override_: Option<&'static str>,
+            expect: &'static str,
+        }
+        const TEST_CASES: &[TestCase] = &[
+            // non-region license
+            TestCase {
+                license: "0123456789012345678901234567890123456789",
+                override_: None,
+                expect: "collector.newrelic.com",
+            },
+            // override present
+            TestCase {
+                license: "0123456789012345678901234567890123456789",
+                override_: Some("other-collector.newrelic.com"),
+                expect: "other-collector.newrelic.com",
+            },
+            // four letter region
+            TestCase {
+                license: "eu01xx6789012345678901234567890123456789",
+                override_: None,
+                expect: "collector.eu01.nr-data.net",
+            },
+            // five letter region
+            TestCase {
+                license: "gov01x6789012345678901234567890123456789",
+                override_: None,
+                expect: "collector.gov01.nr-data.net",
+            },
+            // six letter region
+            TestCase {
+                license: "foo001x789012345678901234567890123456789",
+                override_: None,
+                expect: "collector.foo001.nr-data.net",
+            },
+        ];
+        for test_case in TEST_CASES {
+            let mut config = Config::new("test", test_case.license);
+            config.host = test_case.override_.map(|s| s.to_owned());
+            config.validate().unwrap();
+            assert_eq!(preconnect_host(&config), test_case.expect);
+        }
+    }
+}
