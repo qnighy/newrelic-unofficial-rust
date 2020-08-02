@@ -91,9 +91,7 @@ where
 pub(crate) fn connect_attempt(config: &Config) -> anyhow::Result<AppRun> {
     let resp_pre: PreconnectReply = collector_request_json(Request {
         method: "preconnect",
-        // TODO: config.host
-        // TODO: preconnectRegionLicenseRegex (collector.xxxx.nr-data.net)
-        host: "collector.newrelic.com",
+        host: &preconnect_host(config),
         run_id: None,
         max_payload_size: MAX_PAYLOAD_SIZE,
         license: &config.license,
@@ -230,4 +228,14 @@ fn collector_request_internal<T: Serialize>(
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct ResponseContainer<T> {
     return_value: T,
+}
+
+fn preconnect_host(config: &Config) -> String {
+    if let Some(host) = &config.host {
+        return host.clone();
+    }
+    if let Some(pos) = config.license.find("x") {
+        return format!("collector.{}.nr-data.net", &config.license[..pos]);
+    }
+    "collector.newrelic.com".to_owned()
 }
