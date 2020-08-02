@@ -41,6 +41,12 @@ impl Daemon {
 
         let (wake, wake_recv) = mpsc::sync_channel::<()>(1);
         let inner = Arc::new(ApplicationInner::new(&config, wake));
+        if !config.enabled {
+            return Ok(Daemon {
+                inner,
+                handle: None,
+            });
+        }
         let handle = {
             let inner = inner.clone();
             thread::spawn(move || {
@@ -103,9 +109,14 @@ enum AppState {
 
 impl ApplicationInner {
     fn new(config: &Config, wake: SyncSender<()>) -> Self {
+        let state = if config.enabled {
+            AppState::Init
+        } else {
+            AppState::Dead
+        };
         ApplicationInner {
             config: config.clone(),
-            state: Mutex::new(AppState::Init),
+            state: Mutex::new(state),
             shutdown: AtomicBool::new(false),
             wake,
         }
