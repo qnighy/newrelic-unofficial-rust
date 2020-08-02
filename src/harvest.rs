@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 
 use crate::analytics_events::AnalyticsEventWithAttrs;
 use crate::app_run::AppRun;
-use crate::collector::collector_request;
+use crate::collector::{collector_request, RpmError};
 use crate::metrics::MetricTable;
 
 #[derive(Debug)]
@@ -89,18 +89,18 @@ pub(crate) struct HarvestReady {
 }
 
 impl HarvestReady {
-    pub(crate) fn harvest(self, run: &AppRun) {
+    pub(crate) fn harvest(self, run: &AppRun) -> Result<(), RpmError> {
         if let Some(metric_table) = self.metric_table {
             eprintln!("Sending metrics traces...");
             let payload = metric_table.payload(&run.agent_run_id);
-            // TODO: handle errors
-            collector_request(run, "metric_data", &payload).unwrap();
+            // TODO: ignore specific errors & save harvest data when appropriate
+            collector_request(run, "metric_data", &payload)?;
         }
         if let Some(txn_events) = self.txn_events {
             use crate::analytics_events::{CollectorPayload, Properties};
 
             eprintln!("Sending txn events...");
-            // TODO: handle errors
+            // TODO: ignore specific errors & save harvest data when appropriate
             collector_request(
                 run,
                 "analytic_event_data",
@@ -112,8 +112,9 @@ impl HarvestReady {
                     },
                     txn_events.clone(),
                 ),
-            )
-            .unwrap();
+            )?;
         }
+
+        Ok(())
     }
 }

@@ -190,7 +190,14 @@ impl ApplicationInner {
             };
             // Do harvest after unlock
             if let Some((run, ready)) = ready {
-                ready.harvest(&run);
+                let result = ready.harvest(&run);
+                if let Err(e) = result {
+                    if e.is_disconnect() || e.is_restart_exception() {
+                        return Err(e);
+                    } else {
+                        log::warn!("harvest failure: {}", e);
+                    }
+                }
             }
         }
     }
@@ -203,7 +210,10 @@ impl ApplicationInner {
         };
         if let AppState::Running { run, harvest } = &mut old_state {
             let ready = harvest.ready(run, true);
-            ready.harvest(run);
+            let result = ready.harvest(run);
+            if let Err(e) = result {
+                log::warn!("harvest failure: {}", e);
+            }
         }
     }
 }

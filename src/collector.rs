@@ -50,13 +50,13 @@ impl RpmError {
         }
     }
 
-    // pub(crate) fn is_restart_exception(&self) -> bool {
-    //     if let RpmError::StatusError { status, .. } = self {
-    //         *status == 401 || *status == 409
-    //     } else {
-    //         false
-    //     }
-    // }
+    pub(crate) fn is_restart_exception(&self) -> bool {
+        if let RpmError::StatusError { status, .. } = self {
+            *status == 401 || *status == 409
+        } else {
+            false
+        }
+    }
 
     // pub(crate) fn should_save_harvest_data(&self) -> bool {
     //     if let RpmError::StatusError { status, .. } = self {
