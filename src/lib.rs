@@ -11,12 +11,14 @@ use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
 use crate::app_run::AppRun;
+pub use crate::config::Config;
 use crate::harvest::Harvest;
 pub use crate::transaction::Transaction;
 
 mod analytics_events;
 mod app_run;
 mod collector;
+pub mod config;
 mod connect_reply;
 mod harvest;
 mod limits;
@@ -31,10 +33,15 @@ pub struct Daemon {
 }
 
 impl Daemon {
-    pub fn new(name: &str, license: &str) -> Self {
-        // TODO: validation
+    pub fn new(app_name: &str, license: &str) -> Result<Self, crate::config::ConfigError> {
+        Self::from_config(&Config::new(app_name, license))
+    }
+
+    pub(crate) fn from_config(config: &Config) -> Result<Self, crate::config::ConfigError> {
+        config.validate()?;
+
         let (wake, wake_recv) = mpsc::sync_channel::<()>(1);
-        let inner = Arc::new(ApplicationInner::new(name, license, wake));
+        let inner = Arc::new(ApplicationInner::new(&config.app_name, &config.license, wake));
         let handle = {
             let inner = inner.clone();
             thread::spawn(move || {
@@ -42,10 +49,10 @@ impl Daemon {
             })
         };
 
-        Daemon {
+        Ok(Daemon {
             inner,
             handle: Some(handle),
-        }
+        })
     }
 
     pub fn application(&self) -> Application {

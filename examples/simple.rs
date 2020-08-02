@@ -7,7 +7,7 @@ use std::time::Duration;
 
 fn main() {
     let license = std::env::var("NEW_RELIC_LICENSE_KEY").unwrap();
-    let daemon = Daemon::new("rust-test", &license);
+    let daemon = Daemon::new("rust-test", &license).unwrap();
     let app = daemon.application();
     for _ in 0..120 {
         let txn = app.start_transaction("test");
