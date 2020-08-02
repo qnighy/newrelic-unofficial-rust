@@ -57,17 +57,17 @@ impl Config {
     }
 
     pub fn validate(&self) -> Result<(), ConfigError> {
+        #[allow(clippy::collapsible_if)]
         if self.enabled {
             if self.license.len() != LICENSE_LENGTH {
                 return Err(ConfigError::LicenseLength);
             }
             if self.app_name.is_empty() {
                 return Err(ConfigError::AppNameMissing);
-            } else if self.app_name.split(",").count() > APP_NAME_LIMIT {
+            } else if self.app_name.split(',').count() > APP_NAME_LIMIT {
                 return Err(ConfigError::AppNameLimit);
             }
         } else {
-            #[allow(clippy::redundant_field_names)]
             if self.license.len() != LICENSE_LENGTH && !self.license.is_empty() {
                 return Err(ConfigError::LicenseLength);
             }

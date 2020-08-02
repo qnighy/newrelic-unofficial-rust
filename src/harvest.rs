@@ -110,7 +110,7 @@ impl HarvestReady {
                         reservoir_size: txn_events.capacity() as i32,
                         events_seen: txn_events.len() as i32,
                     },
-                    txn_events.clone(),
+                    txn_events,
                 ),
             )?;
         }

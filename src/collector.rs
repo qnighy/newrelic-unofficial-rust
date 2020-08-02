@@ -149,7 +149,7 @@ pub(crate) fn connect_attempt(config: &Config) -> Result<AppRun, RpmError> {
             host: utilization.hostname().to_owned(),
             display_host: config.host_display_name.clone(),
             settings: Settings::new(config),
-            app_name: config.app_name.split(";").map(|s| s.to_owned()).collect(),
+            app_name: config.app_name.split(';').map(|s| s.to_owned()).collect(),
             high_security: false,
             labels: config
                 .labels
@@ -264,7 +264,7 @@ fn preconnect_host(config: &Config) -> String {
     if let Some(host) = &config.host {
         return host.clone();
     }
-    if let Some(pos) = config.license.find("x") {
+    if let Some(pos) = config.license.find('x') {
         return format!("collector.{}.nr-data.net", &config.license[..pos]);
     }
     "collector.newrelic.com".to_owned()

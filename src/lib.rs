@@ -110,6 +110,7 @@ struct ApplicationInner {
     shutdown: Shutdown,
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
 enum AppState {
     Init,
