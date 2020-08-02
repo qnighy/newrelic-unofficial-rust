@@ -109,7 +109,7 @@ pub(crate) fn connect_attempt(config: &Config) -> anyhow::Result<AppRun> {
         }],
     })?;
 
-    let utilization = UtilizationData::gather();
+    let utilization = UtilizationData::gather(config);
     let resp: ConnectReply = collector_request_json(Request {
         method: "connect",
         host: &resp_pre.redirect_host,

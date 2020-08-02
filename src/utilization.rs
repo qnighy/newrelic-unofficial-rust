@@ -4,6 +4,8 @@
 use serde::{Deserialize, Serialize};
 use sysinfo::SystemExt;
 
+use crate::config::Config;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct UtilizationData {
     metadata_version: i32,
@@ -23,7 +25,7 @@ pub(crate) struct UtilizationData {
 }
 
 impl UtilizationData {
-    pub(crate) fn gather() -> Self {
+    pub(crate) fn gather(config: &Config) -> Self {
         let mut system = sysinfo::System::new_all();
         system.refresh_memory();
         let logical_processors = system.get_processors().len();
@@ -41,7 +43,7 @@ impl UtilizationData {
             log::debug!("error gathering boot id: {}", e);
             None
         });
-        let docker = Docker::gather().unwrap_or_else(|e| {
+        let docker = Docker::gather(config).unwrap_or_else(|e| {
             log::debug!("error gathering docker: {}", e);
             None
         });
@@ -51,7 +53,7 @@ impl UtilizationData {
             gcp: None,
             pcf: None,
             docker,
-            kubernetes: Kubernetes::gather(),
+            kubernetes: Kubernetes::gather(config),
         };
         UtilizationData {
             metadata_version: 5,
@@ -223,11 +225,14 @@ struct Docker {
 }
 
 impl Docker {
-    fn gather() -> std::io::Result<Option<Self>> {
+    fn gather(config: &Config) -> std::io::Result<Option<Self>> {
         use std::fs::read_to_string;
         use std::io;
 
         if std::env::consts::OS != "linux" {
+            return Ok(None);
+        }
+        if !config.utilization.detect_docker {
             return Ok(None);
         }
         let content = read_to_string("/proc/self/cgroup")?;
@@ -282,7 +287,10 @@ struct Kubernetes {
 }
 
 impl Kubernetes {
-    fn gather() -> Option<Self> {
+    fn gather(config: &Config) -> Option<Self> {
+        if !config.utilization.detect_kubernetes {
+            return None;
+        }
         let value = std::env::var_os("KUBERNETES_SERVICE_HOST")?;
         Some(Self {
             kubernetes_service_host: value.to_string_lossy().into_owned(),
