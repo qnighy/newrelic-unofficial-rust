@@ -11,6 +11,8 @@ repository = "https://github.com/qnighy/newrelic-unofficial-rust"
 license = "Apache-2.0"
 keywords = ["newrelic", "performance"]
 categories = ["api-bindings", "development-tools", "development-tools::profiling", "web-programming"]
+
+[badges]
 is-it-maintained-issue-resolution = { repository = "qnighy/newrelic-unofficial-rust" }
 is-it-maintained-open-issues = { repository = "qnighy/newrelic-unofficial-rust" }
 
