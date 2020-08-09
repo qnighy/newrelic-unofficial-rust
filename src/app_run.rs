@@ -15,6 +15,7 @@ pub(crate) struct AppRun {
 
     pub(crate) agent_run_id: AgentRunId,
     pub(crate) request_headers_map: HashMap<String, String>,
+    pub(crate) apdex_t: Duration,
     pub(crate) metrics_traces_period: Duration,
     pub(crate) span_events_period: Duration,
     pub(crate) custom_events_period: Duration,
@@ -36,12 +37,18 @@ impl AppRun {
                 FIXED_HARVEST_PERIOD
             }
         };
+        let apdex_t = if reply.apdex_t >= 0.0 && reply.apdex_t < u64::MAX as f64 {
+            Duration::from_secs_f64(reply.apdex_t)
+        } else {
+            Duration::from_secs(1)
+        };
         Self {
             host: reply_pre.redirect_host.clone(),
             license: license.to_owned(),
 
             agent_run_id: reply.agent_run_id.clone(),
             request_headers_map: reply.request_headers_map.clone(),
+            apdex_t,
             metrics_traces_period: FIXED_HARVEST_PERIOD,
             span_events_period: select_period(
                 reply.event_harvest_config.harvest_limits.span_event_data,

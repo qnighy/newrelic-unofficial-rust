@@ -4,6 +4,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+use crate::apdex::ApdexZone;
 use crate::connect_reply::AgentRunId;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -46,7 +47,7 @@ pub(crate) struct TransactionEvent {
     pub(crate) timestamp: i64,
     #[serde(rename = "nr.apdexPerfZone")]
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub(crate) apdex_perf_zone: Option<String>,
+    pub(crate) apdex_perf_zone: Option<ApdexZone>,
     pub(crate) error: bool,
     #[serde(flatten)]
     pub(crate) shared: TransactionShared,

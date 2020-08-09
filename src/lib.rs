@@ -14,6 +14,7 @@ use crate::sync_util::Shutdown;
 pub use crate::transaction::Transaction;
 
 mod analytics_events;
+mod apdex;
 mod app_run;
 mod collector;
 pub mod config;

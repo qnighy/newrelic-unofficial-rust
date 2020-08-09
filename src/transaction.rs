@@ -9,6 +9,7 @@ use crate::analytics_events::{
     AgentAttrs, AnalyticsEvent, AnalyticsEventWithAttrs, TransactionEvent, TransactionShared,
     UserAttrs,
 };
+use crate::apdex::ApdexZone;
 use crate::{AppState, ApplicationInner};
 
 #[derive(Debug)]
@@ -54,7 +55,10 @@ impl Transaction {
 impl Drop for Transaction {
     fn drop(&mut self) {
         let mut state = self.app.state.lock();
-        if let AppState::Running { run: _, harvest } = &mut *state {
+        if let AppState::Running { run, harvest } = &mut *state {
+            // Ensure immutability
+            let run = &**run;
+
             let name = self.final_name();
             let name_without_first_segment = if let Some(pos) = name.find('/') {
                 &name[pos + 1..]
@@ -94,7 +98,12 @@ impl Drop for Transaction {
                 AnalyticsEvent::Transaction(TransactionEvent {
                     name: name.clone(),
                     timestamp: start.duration_since(UNIX_EPOCH).unwrap().as_secs() as i64,
-                    apdex_perf_zone: None,
+                    apdex_perf_zone: if self.web_request.is_some() {
+                        // TODO: Apdex T may depend on transaction name
+                        Some(ApdexZone::calculate(duration, run.apdex_t))
+                    } else {
+                        None
+                    },
                     error: false,
                     shared: TransactionShared {
                         duration: duration.as_secs_f64(),

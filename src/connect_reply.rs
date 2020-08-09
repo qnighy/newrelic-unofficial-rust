@@ -40,8 +40,7 @@ pub(crate) struct ConnectReply {
     // Settings
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub(crate) web_transactions_apdex: HashMap<String, f64>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub(crate) apdex_t: Option<f64>,
+    pub(crate) apdex_t: f64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub(crate) collect_analytics_events: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
