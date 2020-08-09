@@ -22,6 +22,7 @@ pub struct Config {
     pub enabled: bool,
     pub labels: HashMap<String, String>,
     pub host_display_name: Option<String>,
+    pub transaction_tracer: TransactionTracerConfig,
     pub utilization: UtilizationConfig,
     pub host: Option<String>,
     #[doc(hidden)]
@@ -36,6 +37,7 @@ impl Default for Config {
             enabled: true,
             labels: HashMap::default(),
             host_display_name: None,
+            transaction_tracer: TransactionTracerConfig::default(),
             utilization: UtilizationConfig::default(),
             host: None,
             __non_exhaustive: (),
@@ -109,6 +111,22 @@ impl Config {
         Self {
             host: Some(host.to_owned()),
             ..self
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TransactionTracerConfig {
+    pub enabled: bool,
+    #[doc(hidden)]
+    pub __non_exhaustive: (),
+}
+
+impl Default for TransactionTracerConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            __non_exhaustive: (),
         }
     }
 }

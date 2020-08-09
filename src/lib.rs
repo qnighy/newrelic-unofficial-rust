@@ -24,6 +24,7 @@ mod limits;
 mod metrics;
 mod sync_util;
 mod transaction;
+mod transaction_trace;
 mod utilization;
 
 #[derive(Debug)]
