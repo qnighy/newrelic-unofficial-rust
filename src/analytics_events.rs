@@ -2,6 +2,7 @@
 // Copyright 2020 Masaki Hara.
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 use crate::connect_reply::AgentRunId;
 
@@ -28,7 +29,10 @@ pub(crate) struct AnalyticsEventWithAttrs(
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub(crate) struct UserAttrs {}
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub(crate) struct AgentAttrs {}
+#[serde(transparent)]
+pub(crate) struct AgentAttrs {
+    pub(crate) hash: HashMap<String, serde_json::Value>,
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "type")]

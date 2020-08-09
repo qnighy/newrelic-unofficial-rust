@@ -17,6 +17,10 @@ is-it-maintained-issue-resolution = { repository = "qnighy/newrelic-unofficial-r
 is-it-maintained-open-issues = { repository = "qnighy/newrelic-unofficial-rust" }
 
 [dependencies]
+# Public dependencies
+http = "0.2.1"
+
+# Private dependencies
 log = "0.4.11"
 parking_lot = "0.11.0"
 attohttpc = { version = "0.15.0", features = ["json"] }

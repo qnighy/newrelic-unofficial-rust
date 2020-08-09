@@ -95,7 +95,17 @@ impl Application {
     }
 
     pub fn start_transaction(&self, name: &str) -> Transaction {
-        Transaction::new(&self.inner, name)
+        Transaction::new(&self.inner, name, None)
+    }
+
+    pub fn start_web_transaction<T>(&self, name: &str, request: &http::Request<T>) -> Transaction {
+        let mut parts = http::Request::new(()).into_parts().0;
+        parts.method = request.method().clone();
+        parts.uri = request.uri().clone();
+        parts.version = request.version();
+        parts.headers = request.headers().clone();
+        let request = http::Request::from_parts(parts, ());
+        Transaction::new(&self.inner, name, Some(request))
     }
 
     pub fn shutdown(&self) {
