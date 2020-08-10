@@ -4,11 +4,45 @@ It's an unofficial port of the [New Relic Go agent](https://github.com/newrelic/
 
 Unlike the one based on the C sdk, it is completely thread-safe and works alone.
 
-### status
+### Status
 
-A very basic transaction works. Error handling is mostly lacking.
+- [x] Web transactions
+- [x] Non-web transactions
+- [ ] Tracking threads in transactions
+- [ ] Segments
+- [ ] Error reporting
+- [x] Transaction sampling
+- [ ] Apdex
 
 The library reports itself as Go because the New Relic server (of course) doesn't have a support for Rust.
+
+## Usage
+
+Application setup:
+
+```rust
+// Set up NewRelic in-process daemon (newrelic_unofficial::Daemon).
+// Generate Daemon at application startup and keep it until application shutdown.
+let license = std::env::var("NEW_RELIC_LICENSE_KEY").unwrap();
+let daemon = Daemon::new("rust-test", &license).unwrap();
+
+// Get application handle (newrelic_unofficial::Application) from the daemon.
+// Pass it around to record application events.
+let app = daemon.application().clone();
+```
+
+Transaction:
+
+```rust
+// Start a new (non-web) transaction.
+// The end of the transaction is automatically recorded on drop.
+let txn = app.start_transaction("SomeBackgroundJob");
+
+// Or you can start a web transaction.
+let txn = app.start_web_transaction("/upload", http_request);
+```
+
+Segment: not yet implemented
 
 ## License
 
