@@ -2,10 +2,10 @@
 // Copyright 2020 Masaki Hara.
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 
 use crate::apdex::ApdexZone;
 use crate::domain_defs::AgentRunId;
+use crate::payloads::{AgentAttrs, UserAttrs};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub(crate) struct CollectorPayload(
@@ -26,14 +26,6 @@ pub(crate) struct AnalyticsEventWithAttrs(
     pub(crate) UserAttrs,
     pub(crate) AgentAttrs,
 );
-
-#[derive(Debug, Clone, Deserialize, Serialize)]
-pub(crate) struct UserAttrs {}
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[serde(transparent)]
-pub(crate) struct AgentAttrs {
-    pub(crate) hash: HashMap<String, serde_json::Value>,
-}
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "type")]

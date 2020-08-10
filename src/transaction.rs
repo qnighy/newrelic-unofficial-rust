@@ -5,11 +5,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use crate::payloads::analytics_events::{
-    AgentAttrs, AnalyticsEvent, AnalyticsEventWithAttrs, TransactionEvent, TransactionShared,
-    UserAttrs,
-};
 use crate::apdex::ApdexZone;
+use crate::payloads::analytics_events::{
+    AnalyticsEvent, AnalyticsEventWithAttrs, TransactionEvent, TransactionShared,
+};
+use crate::payloads::{AgentAttrs, UserAttrs};
 use crate::{AppState, ApplicationInner};
 
 #[derive(Debug)]
