@@ -92,8 +92,8 @@ impl Drop for Transaction {
                     );
                 }
             }
-            let attrs = AnalyticsEventWithAttrs(
-                AnalyticsEvent::Transaction(TransactionEvent {
+            let attrs = AnalyticsEventWithAttrs {
+                event: AnalyticsEvent::Transaction(TransactionEvent {
                     name: name.clone(),
                     timestamp: start_from_unix.as_secs() as i64,
                     apdex_perf_zone: if self.web_request.is_some() {
@@ -116,9 +116,9 @@ impl Drop for Transaction {
                     },
                     total_time: duration.as_secs_f64(),
                 }),
-                UserAttrs::default(),
-                agent_attrs.clone(),
-            );
+                user_attrs: UserAttrs::default(),
+                agent_attrs: agent_attrs.clone(),
+            };
             harvest.txn_events.push(attrs);
             harvest
                 .metric_table

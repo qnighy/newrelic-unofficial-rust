@@ -120,14 +120,14 @@ impl HarvestReady {
             collector_request(
                 run,
                 "analytic_event_data",
-                &CollectorPayload(
-                    run.agent_run_id.clone(),
-                    Properties {
+                &CollectorPayload {
+                    agent_run_id: run.agent_run_id.clone(),
+                    properties: Properties {
                         reservoir_size: txn_events.capacity() as i32,
                         events_seen: txn_events.len() as i32,
                     },
-                    txn_events,
-                ),
+                    events: txn_events,
+                },
             )?;
         }
 
