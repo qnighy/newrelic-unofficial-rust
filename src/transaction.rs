@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use crate::analytics_events::{
+use crate::payloads::analytics_events::{
     AgentAttrs, AnalyticsEvent, AnalyticsEventWithAttrs, TransactionEvent, TransactionShared,
     UserAttrs,
 };
@@ -146,7 +146,7 @@ impl Drop for Transaction {
             let should_save_trace = self.app.config.transaction_tracer.enabled
                 && duration >= Duration::from_millis(500);
             if should_save_trace {
-                use crate::transaction_trace::{
+                use crate::payloads::transaction_trace::{
                     DummyStruct, Intrinsics, Node, NodeAttrs, Properties, TraceData,
                     TransactionTrace,
                 };

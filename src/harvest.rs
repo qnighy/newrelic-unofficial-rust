@@ -3,11 +3,11 @@
 
 use std::time::{Duration, Instant};
 
-use crate::analytics_events::AnalyticsEventWithAttrs;
 use crate::app_run::AppRun;
 use crate::collector::{collector_request, RpmError};
 use crate::metrics::MetricTable;
-use crate::transaction_trace::TransactionTrace;
+use crate::payloads::analytics_events::AnalyticsEventWithAttrs;
+use crate::payloads::transaction_trace::TransactionTrace;
 
 #[derive(Debug)]
 pub(crate) struct Harvest {
@@ -102,7 +102,7 @@ impl HarvestReady {
             collector_request(run, "metric_data", &payload)?;
         }
         if let Some(txn_traces) = self.txn_traces {
-            use crate::transaction_trace::CollectorPayload;
+            use crate::payloads::transaction_trace::CollectorPayload;
 
             eprintln!("Sending transaction traces...");
             // TODO: ignore specific errors & save harvest data when appropriate
@@ -113,7 +113,7 @@ impl HarvestReady {
             )?;
         }
         if let Some(txn_events) = self.txn_events {
-            use crate::analytics_events::{CollectorPayload, Properties};
+            use crate::payloads::analytics_events::{CollectorPayload, Properties};
 
             eprintln!("Sending txn events...");
             // TODO: ignore specific errors & save harvest data when appropriate

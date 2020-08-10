@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::analytics_events::{AgentAttrs, UserAttrs};
 use crate::domain_defs::AgentRunId;
+use crate::payloads::analytics_events::{AgentAttrs, UserAttrs};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub(crate) struct CollectorPayload(pub(crate) AgentRunId, pub(crate) Vec<TransactionTrace>);

@@ -13,7 +13,6 @@ use crate::harvest::Harvest;
 use crate::sync_util::Shutdown;
 pub use crate::transaction::Transaction;
 
-mod analytics_events;
 mod apdex;
 mod app_run;
 mod collector;
@@ -23,9 +22,9 @@ mod domain_defs;
 mod harvest;
 mod limits;
 mod metrics;
+mod payloads;
 mod sync_util;
 mod transaction;
-mod transaction_trace;
 mod utilization;
 
 #[derive(Debug)]
