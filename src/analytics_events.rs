@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::apdex::ApdexZone;
-use crate::connect_reply::AgentRunId;
+use crate::domain_defs::AgentRunId;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub(crate) struct CollectorPayload(

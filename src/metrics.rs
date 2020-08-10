@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
-use crate::connect_reply::AgentRunId;
+use crate::domain_defs::AgentRunId;
 use crate::limits::MAX_METRICS;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

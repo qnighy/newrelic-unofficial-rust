@@ -4,7 +4,8 @@
 use std::collections::HashMap;
 use std::time::Duration;
 
-use crate::connect_reply::{AgentRunId, ConnectReply, PreconnectReply};
+use crate::connect_reply::{ConnectReply, PreconnectReply};
+use crate::domain_defs::AgentRunId;
 use crate::limits::{DEFAULT_CONFIGURABLE_EVENT_HARVEST, FIXED_HARVEST_PERIOD};
 
 #[derive(Debug)]

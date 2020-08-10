@@ -4,9 +4,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(transparent)]
-pub(crate) struct AgentRunId(pub(crate) String);
+use crate::domain_defs::AgentRunId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub(crate) struct PreconnectReply {

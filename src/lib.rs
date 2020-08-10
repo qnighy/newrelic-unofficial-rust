@@ -19,6 +19,7 @@ mod app_run;
 mod collector;
 pub mod config;
 mod connect_reply;
+mod domain_defs;
 mod harvest;
 mod limits;
 mod metrics;
