@@ -109,7 +109,10 @@ impl HarvestReady {
             collector_request(
                 run,
                 "transaction_sample_data",
-                &CollectorPayload(run.agent_run_id.clone(), txn_traces),
+                &CollectorPayload {
+                    agent_run_id: run.agent_run_id.clone(),
+                    traces: txn_traces,
+                },
             )?;
         }
         if let Some(txn_events) = self.txn_events {
