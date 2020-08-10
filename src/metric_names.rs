@@ -52,3 +52,25 @@ pub(crate) const DISPATCHER_METRIC: &str = "HttpDispatcher";
 pub(crate) const INSTANCE_REPORTING: &str = "Instance/Reporting";
 
 pub(crate) const SUPPORTABILITY_DROPPED: &str = "Supportability/MetricsDropped";
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_total_time_name() {
+        assert_eq!(
+            total_time_name("WebTransaction/Go/test", true),
+            "WebTransactionTotalTime/Go/test"
+        );
+        assert_eq!(
+            total_time_name("OtherTransaction/Go/test", false),
+            "OtherTransactionTotalTime/Go/test"
+        );
+        assert_eq!(total_time_name("foo", true), "WebTransactionTotalTime/foo");
+        assert_eq!(
+            total_time_name("foo", false),
+            "OtherTransactionTotalTime/foo"
+        );
+    }
+}
