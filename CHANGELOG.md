@@ -1,5 +1,7 @@
 ## Unreleased
 
+## 0.1.2
+
 - Limit number of txn traces
 - Internal refactorings
 
