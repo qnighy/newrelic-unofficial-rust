@@ -10,14 +10,14 @@ use crate::payloads::metrics::{CollectorPayload, MetricId, MetricValue};
 
 impl From<Metric> for MetricValue {
     fn from(m: Metric) -> Self {
-        Self(
-            m.count_satisfied,
-            m.total_tolerated,
-            m.exclusive_failed,
-            m.min,
-            m.max,
-            m.sum_squares,
-        )
+        Self {
+            count_satisfied: m.count_satisfied,
+            total_tolerated: m.total_tolerated,
+            exclusive_failed: m.exclusive_failed,
+            min: m.min,
+            max: m.max,
+            sum_squares: m.sum_squares,
+        }
     }
 }
 
@@ -61,15 +61,16 @@ impl MetricTable {
             .unwrap_or(Duration::from_secs(0));
         let end = SystemTime::now();
         let start = end - duration;
-        CollectorPayload(
-            run_id.clone(),
-            start.duration_since(UNIX_EPOCH).unwrap().as_secs() as i64,
-            end.duration_since(UNIX_EPOCH).unwrap().as_secs() as i64,
-            self.metrics
+        CollectorPayload {
+            agent_run_id: run_id.clone(),
+            start: start.duration_since(UNIX_EPOCH).unwrap().as_secs() as i64,
+            end: end.duration_since(UNIX_EPOCH).unwrap().as_secs() as i64,
+            metrics: self
+                .metrics
                 .iter()
                 .map(|(id, &metric)| (id.clone(), metric.into()))
                 .collect(),
-        )
+        }
     }
 }
 
