@@ -172,7 +172,7 @@ impl Drop for Transaction {
                             children: vec![Node {
                                 relative_start_millis: 0,
                                 relative_stop_millis: duration.as_millis() as i64,
-                                name: name,
+                                name,
                                 attrs: NodeAttrs {
                                     exclusive_duration_millis: Some(
                                         duration.as_secs_f64() * 1000.0,
