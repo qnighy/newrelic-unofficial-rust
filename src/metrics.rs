@@ -39,20 +39,44 @@ impl MetricTable {
         }
     }
 
+    pub(crate) fn add_count(&mut self, name: &str, scope: Option<&str>, count: f64, forced: bool) {
+        let metric = Metric::from_count(count);
+        self.add(name, scope, metric, forced);
+    }
+
     pub(crate) fn add_duration(
         &mut self,
         name: &str,
         scope: Option<&str>,
         duration: Duration,
         exclusive: Duration,
-        _forced: bool,
+        forced: bool,
     ) {
+        let metric = Metric::from_duration(duration, exclusive);
+        self.add(name, scope, metric, forced);
+    }
+
+    fn add(&mut self, name: &str, scope: Option<&str>, metric: Metric, forced: bool) {
+        use std::collections::hash_map::Entry;
+
         let id = MetricId {
             name: name.to_owned(),
             scope: scope.map(|s| s.to_owned()),
         };
-        let entry = self.metrics.entry(id).or_default();
-        *entry = Metric::merge(*entry, Metric::from_duration(duration, exclusive))
+        let len = self.metrics.len();
+        match self.metrics.entry(id) {
+            Entry::Occupied(mut entry) => {
+                entry.insert(Metric::merge(*entry.get(), metric));
+                return;
+            }
+            Entry::Vacant(entry) => {
+                if len <= self.max_table_size || forced {
+                    entry.insert(metric);
+                    return;
+                }
+            }
+        }
+        self.add_count("Supportability/MetricsDropped", None, 1.0, true);
     }
 
     pub(crate) fn payload(&self, run_id: &AgentRunId) -> CollectorPayload {
@@ -76,7 +100,6 @@ impl MetricTable {
 
 #[derive(Debug, Clone, Copy)]
 struct Metric {
-    forced: bool,
     count_satisfied: f64,
     total_tolerated: f64,
     exclusive_failed: f64,
@@ -88,7 +111,6 @@ struct Metric {
 impl Metric {
     fn merge(self, other: Metric) -> Metric {
         Self {
-            forced: self.forced || other.forced,
             count_satisfied: self.count_satisfied + other.count_satisfied,
             total_tolerated: self.total_tolerated + other.total_tolerated,
             exclusive_failed: self.exclusive_failed + other.exclusive_failed,
@@ -100,7 +122,6 @@ impl Metric {
     fn from_duration(duration: Duration, exclusive: Duration) -> Self {
         let ds = duration.as_secs_f64();
         Self {
-            forced: false,
             count_satisfied: 1.0,
             total_tolerated: ds,
             exclusive_failed: exclusive.as_secs_f64(),
@@ -109,23 +130,21 @@ impl Metric {
             sum_squares: ds * ds,
         }
     }
-    // fn from_count(count: f64) -> Self {
-    //     Self {
-    //         forced: false,
-    //         count_satisfied: count,
-    //         total_tolerated: 0.0,
-    //         exclusive_failed: 0.0,
-    //         min: 0.0,
-    //         max: 0.0,
-    //         sum_squares: 0.0,
-    //     }
-    // }
+    fn from_count(count: f64) -> Self {
+        Self {
+            count_satisfied: count,
+            total_tolerated: 0.0,
+            exclusive_failed: 0.0,
+            min: 0.0,
+            max: 0.0,
+            sum_squares: 0.0,
+        }
+    }
 }
 
 impl Default for Metric {
     fn default() -> Self {
         Self {
-            forced: false,
             count_satisfied: 0.0,
             total_tolerated: 0.0,
             exclusive_failed: 0.0,
