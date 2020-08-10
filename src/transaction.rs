@@ -41,9 +41,9 @@ impl Transaction {
             &self.name
         };
         let prefix = if self.web_request.is_some() {
-            "WebTransaction/Go"
+            crate::metric_names::WEB_METRIC_PREFIX
         } else {
-            "OtherTransaction/Go"
+            crate::metric_names::BACKGROUND_METRIC_PREFIX
         };
         // TODO: apply transaction name rules
         // TODO: apply segment terms
@@ -53,22 +53,13 @@ impl Transaction {
 
 impl Drop for Transaction {
     fn drop(&mut self) {
+        let is_web = self.web_request.is_some();
         let mut state = self.app.state.lock();
         if let AppState::Running { run, harvest } = &mut *state {
             // Ensure immutability
             let run = &**run;
 
             let name = self.final_name();
-            let name_without_first_segment = if let Some(pos) = name.find('/') {
-                &name[pos + 1..]
-            } else {
-                &name
-            };
-            let (rollup_name, total_time) = if self.web_request.is_some() {
-                ("WebTransaction", "WebTransactionTotalTime")
-            } else {
-                ("OtherTransaction/all", "OtherTransactionTotalTime")
-            };
             let duration = Instant::now()
                 .checked_duration_since(self.start)
                 .unwrap_or(Duration::from_secs(0));
@@ -96,7 +87,7 @@ impl Drop for Transaction {
                 event: AnalyticsEvent::Transaction(TransactionEvent {
                     name: name.clone(),
                     timestamp: start_from_unix.as_secs() as i64,
-                    apdex_perf_zone: if self.web_request.is_some() {
+                    apdex_perf_zone: if is_web {
                         // TODO: Apdex T may depend on transaction name
                         Some(ApdexZone::calculate(duration, run.apdex_t))
                     } else {
@@ -123,6 +114,7 @@ impl Drop for Transaction {
             harvest
                 .metric_table
                 .add_duration(&name, None, duration, Duration::from_secs(0), true);
+            let rollup_name = crate::metric_names::rollup_name(is_web);
             harvest.metric_table.add_duration(
                 rollup_name,
                 None,
@@ -130,22 +122,23 @@ impl Drop for Transaction {
                 Duration::from_secs(0),
                 true,
             );
-            if self.web_request.is_some() {
+            if is_web {
                 harvest.metric_table.add_duration(
-                    "HttpDispatcher",
+                    crate::metric_names::DISPATCHER_METRIC,
                     None,
                     duration,
                     Duration::from_secs(0),
                     true,
                 );
             }
-            let total_name = format!("{}/{}", total_time, name_without_first_segment);
+            let total_name = crate::metric_names::total_time_name(&name, is_web);
+            let total_rollup_name = crate::metric_names::total_time_rollup_name(is_web);
             harvest
                 .metric_table
                 .add_duration(&total_name, None, duration, duration, false);
             harvest
                 .metric_table
-                .add_duration(total_time, None, duration, duration, true);
+                .add_duration(total_rollup_name, None, duration, duration, true);
 
             // TODO: check is_synthetics
             // TODO: duration and is_apdex_failing configs
@@ -179,7 +172,7 @@ impl Drop for Transaction {
                             children: vec![Node {
                                 relative_start_millis: 0,
                                 relative_stop_millis: duration.as_millis() as i64,
-                                name: name.clone(),
+                                name: name,
                                 attrs: NodeAttrs {
                                     exclusive_duration_millis: Some(
                                         duration.as_secs_f64() * 1000.0,

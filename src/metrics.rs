@@ -76,7 +76,7 @@ impl MetricTable {
                 }
             }
         }
-        self.add_count("Supportability/MetricsDropped", None, 1.0, true);
+        self.add_count(crate::metric_names::SUPPORTABILITY_DROPPED, None, 1.0, true);
     }
 
     pub(crate) fn payload(&self, run_id: &AgentRunId) -> CollectorPayload {

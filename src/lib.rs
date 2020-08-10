@@ -21,6 +21,7 @@ mod connect_reply;
 mod domain_defs;
 mod harvest;
 mod limits;
+mod metric_names;
 mod metrics;
 mod payloads;
 mod sync_util;
