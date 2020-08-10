@@ -1,7 +1,6 @@
 // Copyright 2020 New Relic Corporation. (for the original go-agent)
 // Copyright 2020 Masaki Hara.
 
-use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -76,20 +75,18 @@ impl Drop for Transaction {
             let end = SystemTime::now();
             let start = end - duration;
             let start_from_unix = start.duration_since(UNIX_EPOCH).unwrap_or_default();
-            let mut agent_attrs = AgentAttrs {
-                hash: HashMap::new(),
-            };
+            let mut agent_attrs = AgentAttrs::default();
             if let Some(web_request) = &self.web_request {
-                agent_attrs.hash.insert(
+                agent_attrs.0.insert(
                     "request.method".to_owned(),
                     web_request.method().to_string().into(),
                 );
-                agent_attrs.hash.insert(
+                agent_attrs.0.insert(
                     "request.uri".to_owned(),
                     web_request.uri().to_string().into(),
                 );
                 if let Some(host) = web_request.headers().get("Host") {
-                    agent_attrs.hash.insert(
+                    agent_attrs.0.insert(
                         "request.headers.host".to_owned(),
                         String::from_utf8_lossy(host.as_bytes()).into_owned().into(),
                     );
@@ -119,7 +116,7 @@ impl Drop for Transaction {
                     },
                     total_time: duration.as_secs_f64(),
                 }),
-                UserAttrs {},
+                UserAttrs::default(),
                 agent_attrs.clone(),
             );
             harvest.txn_events.push(attrs);
@@ -201,7 +198,7 @@ impl Drop for Transaction {
                         ),
                         Properties {
                             agent_attributes: agent_attrs,
-                            user_attributes: UserAttrs {},
+                            user_attributes: UserAttrs::default(),
                             intrinsics: Intrinsics {
                                 total_time: duration.as_secs_f64(),
                             },
