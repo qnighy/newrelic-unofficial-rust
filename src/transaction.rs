@@ -130,6 +130,15 @@ impl Drop for Transaction {
                 Duration::from_secs(0),
                 true,
             );
+            if self.web_request.is_some() {
+                harvest.metric_table.add_duration(
+                    "HttpDispatcher",
+                    None,
+                    duration,
+                    Duration::from_secs(0),
+                    true,
+                );
+            }
             let total_name = format!("{}/{}", total_time, name_without_first_segment);
             harvest
                 .metric_table
