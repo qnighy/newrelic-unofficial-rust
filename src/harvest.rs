@@ -7,7 +7,7 @@ use crate::app_run::AppRun;
 use crate::collector::{collector_request, RpmError};
 use crate::metrics::MetricTable;
 use crate::payloads::analytics_events::AnalyticsEventWithAttrs;
-use crate::payloads::transaction_trace::TransactionTrace;
+use crate::transaction_trace::HarvestTraces;
 
 #[derive(Debug)]
 pub(crate) struct Harvest {
@@ -18,7 +18,7 @@ pub(crate) struct Harvest {
     error_events_timer: HarvestTimer,
     pub(crate) txn_events: Vec<AnalyticsEventWithAttrs>,
     pub(crate) metric_table: MetricTable,
-    pub(crate) txn_traces: Vec<TransactionTrace>,
+    pub(crate) txn_traces: HarvestTraces,
 }
 
 impl Harvest {
@@ -36,7 +36,7 @@ impl Harvest {
             error_events_timer: new_timer(run.error_events_period),
             txn_events: vec![],
             metric_table: MetricTable::new(),
-            txn_traces: vec![],
+            txn_traces: HarvestTraces::new(),
         }
     }
 
@@ -52,7 +52,10 @@ impl Harvest {
                 &mut self.metric_table,
                 MetricTable::new(),
             ));
-            ready.txn_traces = Some(std::mem::replace(&mut self.txn_traces, vec![]));
+            ready.txn_traces = Some(std::mem::replace(
+                &mut self.txn_traces,
+                HarvestTraces::new(),
+            ));
         }
         if self.span_events_timer.ready(now, force) {
             eprintln!("Processing span events...");
@@ -92,7 +95,7 @@ impl HarvestTimer {
 pub(crate) struct HarvestReady {
     pub(crate) txn_events: Option<Vec<AnalyticsEventWithAttrs>>,
     pub(crate) metric_table: Option<MetricTable>,
-    pub(crate) txn_traces: Option<Vec<TransactionTrace>>,
+    pub(crate) txn_traces: Option<HarvestTraces>,
 }
 
 impl HarvestReady {
@@ -104,18 +107,12 @@ impl HarvestReady {
             collector_request(run, "metric_data", &payload)?;
         }
         if let Some(txn_traces) = self.txn_traces {
-            use crate::payloads::transaction_trace::CollectorPayload;
-
             eprintln!("Sending transaction traces...");
-            // TODO: ignore specific errors & save harvest data when appropriate
-            collector_request(
-                run,
-                "transaction_sample_data",
-                &CollectorPayload {
-                    agent_run_id: run.agent_run_id.clone(),
-                    traces: txn_traces,
-                },
-            )?;
+            let payload = txn_traces.into_payload(&run.agent_run_id);
+            if !payload.is_empty() {
+                // TODO: ignore specific errors & save harvest data when appropriate
+                collector_request(run, "transaction_sample_data", &payload)?;
+            }
         }
         if let Some(txn_events) = self.txn_events {
             use crate::payloads::analytics_events::{CollectorPayload, Properties};

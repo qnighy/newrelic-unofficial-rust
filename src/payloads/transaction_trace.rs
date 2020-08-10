@@ -9,6 +9,12 @@ pub(crate) struct CollectorPayload {
     pub(crate) traces: Vec<TransactionTrace>,
 }
 
+impl CollectorPayload {
+    pub(crate) fn is_empty(&self) -> bool {
+        self.traces.is_empty()
+    }
+}
+
 impl Serialize for CollectorPayload {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where

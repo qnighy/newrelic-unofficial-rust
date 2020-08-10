@@ -1,5 +1,8 @@
 ## Unreleased
 
+- Limit number of txn traces
+- Internal refactorings
+
 ## 0.1.1
 
 - Basic web transaction support

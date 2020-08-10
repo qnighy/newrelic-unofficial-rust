@@ -26,6 +26,7 @@ mod metrics;
 mod payloads;
 mod sync_util;
 mod transaction;
+mod transaction_trace;
 mod utilization;
 
 #[derive(Debug)]
