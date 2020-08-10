@@ -46,6 +46,8 @@ impl Harvest {
         let mut ready = HarvestReady::default();
         if self.metrics_traces_timer.ready(now, force) {
             eprintln!("Processing metrics traces...");
+            self.metric_table
+                .add_count("Instance/Reporting", None, 1.0, true);
             ready.metric_table = Some(std::mem::replace(
                 &mut self.metric_table,
                 MetricTable::new(),
