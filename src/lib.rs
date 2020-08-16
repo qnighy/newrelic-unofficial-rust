@@ -32,50 +32,20 @@ mod transaction_trace;
 mod utilization;
 
 #[derive(Debug)]
-pub struct Daemon {
+pub struct ApplicationGuard {
     app: Application,
     handle: Option<JoinHandle<()>>,
 }
 
-impl Daemon {
-    pub fn new(app_name: &str, license: &str) -> Result<Self, crate::config::ConfigError> {
-        Self::from_config(&Config::new(app_name, license))
-    }
+impl std::ops::Deref for ApplicationGuard {
+    type Target = Application;
 
-    pub(crate) fn from_config(config: &Config) -> Result<Self, crate::config::ConfigError> {
-        config.validate()?;
-
-        let app = Application::new(&config);
-        if !config.enabled {
-            return Ok(Daemon { app, handle: None });
-        }
-        let handle = {
-            let inner = app.inner.clone();
-            thread::spawn(move || {
-                inner.run();
-            })
-        };
-
-        Ok(Daemon {
-            app,
-            handle: Some(handle),
-        })
-    }
-
-    pub fn application(&self) -> &Application {
+    fn deref(&self) -> &Self::Target {
         &self.app
-    }
-
-    pub fn start_transaction(&self, name: &str) -> Transaction {
-        self.app.start_transaction(name)
-    }
-
-    pub fn shutdown(&self) {
-        self.app.shutdown()
     }
 }
 
-impl std::ops::Drop for Daemon {
+impl std::ops::Drop for ApplicationGuard {
     fn drop(&mut self) {
         self.shutdown();
         if let Some(handle) = self.handle.take() {
@@ -93,10 +63,36 @@ pub struct Application {
 }
 
 impl Application {
-    fn new(config: &Config) -> Self {
-        Self {
+    #[allow(clippy::new_ret_no_self)]
+    pub fn new(
+        app_name: &str,
+        license: &str,
+    ) -> Result<ApplicationGuard, crate::config::ConfigError> {
+        Self::from_config(&Config::new(app_name, license))
+    }
+
+    pub(crate) fn from_config(
+        config: &Config,
+    ) -> Result<ApplicationGuard, crate::config::ConfigError> {
+        config.validate()?;
+
+        let app = Application {
             inner: Arc::new(ApplicationInner::new(config)),
+        };
+        if !config.enabled {
+            return Ok(ApplicationGuard { app, handle: None });
         }
+        let handle = {
+            let inner = app.inner.clone();
+            thread::spawn(move || {
+                inner.run();
+            })
+        };
+
+        Ok(ApplicationGuard {
+            app,
+            handle: Some(handle),
+        })
     }
 
     pub fn start_transaction(&self, name: &str) -> Transaction {

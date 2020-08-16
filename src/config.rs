@@ -54,8 +54,8 @@ impl Config {
         }
     }
 
-    pub fn start(&self) -> Result<crate::Daemon, ConfigError> {
-        crate::Daemon::from_config(self)
+    pub fn start(&self) -> Result<crate::ApplicationGuard, ConfigError> {
+        crate::Application::from_config(self)
     }
 
     pub fn validate(&self) -> Result<(), ConfigError> {

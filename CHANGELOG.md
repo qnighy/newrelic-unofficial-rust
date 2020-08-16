@@ -1,5 +1,9 @@
 ## Unreleased
 
+- Rename `Daemon` as `ApplicationGuard` and make it deref to `Application`
+
+## 0.1.3
+
 - Get rid of `eprintln` logs
 
 ## 0.1.2

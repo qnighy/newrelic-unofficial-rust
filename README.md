@@ -21,14 +21,8 @@ The library reports itself as Go because the New Relic server (of course) doesn'
 Application setup:
 
 ```rust
-// Set up NewRelic in-process daemon (newrelic_unofficial::Daemon).
-// Generate Daemon at application startup and keep it until application shutdown.
 let license = std::env::var("NEW_RELIC_LICENSE_KEY").unwrap();
-let daemon = Daemon::new("rust-test", &license).unwrap();
-
-// Get application handle (newrelic_unofficial::Application) from the daemon.
-// Pass it around to record application events.
-let app = daemon.application().clone();
+let app = Application::new("rust-test", &license).unwrap();
 ```
 
 Transaction:
