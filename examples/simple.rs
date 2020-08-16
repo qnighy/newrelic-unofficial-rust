@@ -6,6 +6,9 @@ use std::thread::sleep;
 use std::time::Duration;
 
 fn main() {
+    dotenv::dotenv().ok();
+    env_logger::init();
+
     let license = std::env::var("NEW_RELIC_LICENSE_KEY").unwrap();
     let daemon = Daemon::new("rust-test", &license).unwrap();
     let app = daemon.application();
