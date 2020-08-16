@@ -105,7 +105,7 @@ pub(crate) fn collector_request<T>(run: &AppRun, command: &str, payload: &T) -> 
 where
     T: Serialize,
 {
-    eprintln!("payload = {}", serde_json::to_string(payload).unwrap());
+    log::debug!("payload = {}", serde_json::to_string(payload).unwrap());
     collector_request_internal(Request {
         method: command,
         host: &run.host,
@@ -185,7 +185,7 @@ pub(crate) fn connect_attempt(config: &Config) -> Result<AppRun, RpmError> {
             },
         }],
     })?;
-    // eprintln!("resp = {:#?}", resp);
+    log::debug!("resp = {:#?}", resp);
 
     Ok(AppRun::new(&config.license, &resp_pre, &resp))
 }

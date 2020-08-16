@@ -45,7 +45,7 @@ impl Harvest {
         let now = Instant::now();
         let mut ready = HarvestReady::default();
         if self.metrics_traces_timer.ready(now, force) {
-            eprintln!("Processing metrics traces...");
+            log::debug!("Processing metrics traces...");
             self.metric_table
                 .add_count(crate::metric_names::INSTANCE_REPORTING, None, 1.0, true);
             ready.metric_table = Some(std::mem::replace(
@@ -58,17 +58,17 @@ impl Harvest {
             ));
         }
         if self.span_events_timer.ready(now, force) {
-            eprintln!("Processing span events...");
+            log::debug!("Processing span events...");
         }
         if self.custom_events_timer.ready(now, force) {
-            eprintln!("Processing custom events...");
+            log::debug!("Processing custom events...");
         }
         if self.txn_events_timer.ready(now, force) {
-            eprintln!("Processing txn events...");
+            log::debug!("Processing txn events...");
             ready.txn_events = Some(std::mem::replace(&mut self.txn_events, vec![]));
         }
         if self.error_events_timer.ready(now, force) {
-            eprintln!("Processing error events...");
+            log::debug!("Processing error events...");
         }
         ready
     }
@@ -101,13 +101,13 @@ pub(crate) struct HarvestReady {
 impl HarvestReady {
     pub(crate) fn harvest(self, run: &AppRun) -> Result<(), RpmError> {
         if let Some(metric_table) = self.metric_table {
-            eprintln!("Sending metrics traces...");
+            log::debug!("Sending metrics traces...");
             let payload = metric_table.payload(&run.agent_run_id);
             // TODO: ignore specific errors & save harvest data when appropriate
             collector_request(run, "metric_data", &payload)?;
         }
         if let Some(txn_traces) = self.txn_traces {
-            eprintln!("Sending transaction traces...");
+            log::debug!("Sending transaction traces...");
             let payload = txn_traces.into_payload(&run.agent_run_id);
             if !payload.is_empty() {
                 // TODO: ignore specific errors & save harvest data when appropriate
@@ -117,7 +117,7 @@ impl HarvestReady {
         if let Some(txn_events) = self.txn_events {
             use crate::payloads::analytics_events::{CollectorPayload, Properties};
 
-            eprintln!("Sending txn events...");
+            log::debug!("Sending txn events...");
             // TODO: ignore specific errors & save harvest data when appropriate
             collector_request(
                 run,

@@ -1,5 +1,7 @@
 ## Unreleased
 
+- Get rid of `eprintln` logs
+
 ## 0.1.2
 
 - Limit number of txn traces

@@ -79,8 +79,7 @@ impl std::ops::Drop for Daemon {
         if let Some(handle) = self.handle.take() {
             let result = handle.join();
             if let Err(e) = result {
-                // TODO: logging
-                eprintln!("NewRelic daemon failed: {:?}", e);
+                log::error!("NewRelic daemon failed: {:?}", e);
             }
         }
     }
@@ -183,7 +182,7 @@ impl ApplicationInner {
     }
 
     fn run1(self: &Arc<Self>, run: AppRun) -> Result<Void, RpmError> {
-        eprintln!("run = {:#?}", run);
+        log::debug!("run = {:#?}", run);
         let harvest = Harvest::new(&run);
         {
             let mut state = self.state.lock();
@@ -218,7 +217,7 @@ impl ApplicationInner {
     }
 
     fn shutdown(self: &Arc<Self>) {
-        eprintln!("shutting down...");
+        log::debug!("shutting down...");
         let mut old_state = {
             let mut state = self.state.lock();
             std::mem::replace(&mut *state, AppState::Dead)
