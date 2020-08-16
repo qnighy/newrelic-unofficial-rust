@@ -1,6 +1,8 @@
 // Copyright 2020 New Relic Corporation. (for the original go-agent)
 // Copyright 2020 Masaki Hara.
 
+#![deny(unsafe_code)]
+
 use parking_lot::Mutex;
 use std::sync::Arc;
 use std::thread::{self, JoinHandle};
