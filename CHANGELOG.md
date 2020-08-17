@@ -1,6 +1,7 @@
 ## Unreleased
 
 - Rename `Daemon` as `ApplicationGuard` and make it deref to `Application`
+- Split `Transaction` into `Transaction` and `TransactionGuard`
 
 ## 0.1.3
 

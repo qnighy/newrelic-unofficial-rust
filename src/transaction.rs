@@ -12,27 +12,58 @@ use crate::payloads::{AgentAttrs, UserAttrs};
 use crate::{AppState, ApplicationInner};
 
 #[derive(Debug)]
+pub struct TransactionGuard {
+    txn: Transaction,
+}
+
+impl std::ops::Deref for TransactionGuard {
+    type Target = Transaction;
+
+    fn deref(&self) -> &Self::Target {
+        &self.txn
+    }
+}
+
+impl std::ops::Drop for TransactionGuard {
+    fn drop(&mut self) {
+        self.txn.inner.stop();
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Transaction {
+    inner: Arc<TransactionInner>,
+}
+
+impl Transaction {
+    #[allow(clippy::new_ret_no_self)]
+    pub(crate) fn new(
+        app: &Arc<ApplicationInner>,
+        name: &str,
+        web_request: Option<http::Request<()>>,
+    ) -> TransactionGuard {
+        TransactionGuard {
+            txn: Transaction {
+                inner: Arc::new(TransactionInner {
+                    app: app.clone(),
+                    start: Instant::now(),
+                    name: name.to_owned(),
+                    web_request,
+                }),
+            },
+        }
+    }
+}
+
+#[derive(Debug)]
+struct TransactionInner {
     app: Arc<ApplicationInner>,
     start: Instant,
     name: String,
     web_request: Option<http::Request<()>>,
 }
 
-impl Transaction {
-    pub(crate) fn new(
-        app: &Arc<ApplicationInner>,
-        name: &str,
-        web_request: Option<http::Request<()>>,
-    ) -> Self {
-        Transaction {
-            app: app.clone(),
-            start: Instant::now(),
-            name: name.to_owned(),
-            web_request,
-        }
-    }
-
+impl TransactionInner {
     fn final_name(&self) -> String {
         // TODO: apply URL rules
         let name = if self.name.starts_with('/') {
@@ -49,10 +80,8 @@ impl Transaction {
         // TODO: apply segment terms
         format!("{}/{}", prefix, name)
     }
-}
 
-impl Drop for Transaction {
-    fn drop(&mut self) {
+    fn stop(&self) {
         let is_web = self.web_request.is_some();
         let mut state = self.app.state.lock();
         if let AppState::Running { run, harvest } = &mut *state {
