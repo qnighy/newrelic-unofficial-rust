@@ -1,6 +1,7 @@
 // Copyright 2020 New Relic Corporation. (for the original go-agent)
 // Copyright 2020 Masaki Hara.
 
+use parking_lot::Mutex;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
@@ -10,6 +11,8 @@ use crate::payloads::analytics_events::{
 };
 use crate::payloads::{AgentAttrs, UserAttrs};
 use crate::{AppState, ApplicationInner};
+
+const MAIN_THREAD_ID: usize = 0;
 
 #[derive(Debug)]
 pub struct TransactionGuard {
@@ -33,6 +36,7 @@ impl std::ops::Drop for TransactionGuard {
 #[derive(Debug, Clone)]
 pub struct Transaction {
     inner: Arc<TransactionInner>,
+    thread_id: usize,
 }
 
 impl Transaction {
@@ -42,14 +46,17 @@ impl Transaction {
         name: &str,
         web_request: Option<WebRequest>,
     ) -> TransactionGuard {
+        let now = Instant::now();
         TransactionGuard {
             txn: Transaction {
                 inner: Arc::new(TransactionInner {
                     app: app.clone(),
-                    start: Instant::now(),
+                    start: now,
                     name: name.to_owned(),
                     web_request,
+                    state: Mutex::new(Some(TransactionState::new(now))),
                 }),
+                thread_id: MAIN_THREAD_ID,
             },
         }
     }
@@ -61,6 +68,7 @@ struct TransactionInner {
     start: Instant,
     name: String,
     web_request: Option<WebRequest>,
+    state: Mutex<Option<TransactionState>>,
 }
 
 impl TransactionInner {
@@ -225,6 +233,34 @@ impl TransactionInner {
                 };
                 harvest.txn_traces.push(trace);
             }
+        }
+    }
+}
+
+#[derive(Debug)]
+struct TransactionState {
+    threads: Vec<Thread>,
+}
+
+impl TransactionState {
+    fn new(now: Instant) -> Self {
+        Self {
+            threads: vec![Thread::new(now)],
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Thread {
+    start: Instant,
+    end: Option<Instant>,
+}
+
+impl Thread {
+    fn new(now: Instant) -> Self {
+        Self {
+            start: now,
+            end: None,
         }
     }
 }
