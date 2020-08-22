@@ -40,7 +40,7 @@ impl Transaction {
     pub(crate) fn new(
         app: &Arc<ApplicationInner>,
         name: &str,
-        web_request: Option<http::Request<()>>,
+        web_request: Option<WebRequest>,
     ) -> TransactionGuard {
         TransactionGuard {
             txn: Transaction {
@@ -60,7 +60,7 @@ struct TransactionInner {
     app: Arc<ApplicationInner>,
     start: Instant,
     name: String,
-    web_request: Option<http::Request<()>>,
+    web_request: Option<WebRequest>,
 }
 
 impl TransactionInner {
@@ -99,13 +99,12 @@ impl TransactionInner {
             if let Some(web_request) = &self.web_request {
                 agent_attrs.0.insert(
                     "request.method".to_owned(),
-                    web_request.method().to_string().into(),
+                    web_request.method.to_string().into(),
                 );
-                agent_attrs.0.insert(
-                    "request.uri".to_owned(),
-                    web_request.uri().to_string().into(),
-                );
-                if let Some(host) = web_request.headers().get("Host") {
+                agent_attrs
+                    .0
+                    .insert("request.uri".to_owned(), web_request.uri.to_string().into());
+                if let Some(host) = web_request.headers.get("Host") {
                     agent_attrs.0.insert(
                         "request.headers.host".to_owned(),
                         String::from_utf8_lossy(host.as_bytes()).into_owned().into(),
@@ -186,7 +185,7 @@ impl TransactionInner {
                     request_uri: self
                         .web_request
                         .as_ref()
-                        .map(|web_request| web_request.uri().to_string()),
+                        .map(|web_request| web_request.uri.to_string()),
                     trace_data: TraceData {
                         unused1: 0.0,
                         unused2: DummyStruct {},
@@ -226,6 +225,59 @@ impl TransactionInner {
                 };
                 harvest.txn_traces.push(trace);
             }
+        }
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct WebRequest {
+    pub version: http::Version,
+    pub method: http::Method,
+    pub uri: http::Uri,
+    pub headers: http::HeaderMap,
+    #[doc(hidden)]
+    pub __non_exhaustive: (),
+}
+
+impl From<http::request::Parts> for WebRequest {
+    fn from(req: http::request::Parts) -> Self {
+        WebRequest {
+            version: req.version,
+            method: req.method,
+            uri: req.uri,
+            headers: req.headers,
+            __non_exhaustive: (),
+        }
+    }
+}
+
+impl<'a> From<&'a http::request::Parts> for WebRequest {
+    fn from(req: &'a http::request::Parts) -> Self {
+        WebRequest {
+            version: req.version,
+            method: req.method.clone(),
+            uri: req.uri.clone(),
+            headers: req.headers.clone(),
+            __non_exhaustive: (),
+        }
+    }
+}
+
+impl<T> From<http::Request<T>> for WebRequest {
+    fn from(req: http::Request<T>) -> Self {
+        let (parts, _) = req.into_parts();
+        WebRequest::from(parts)
+    }
+}
+
+impl<'a, T> From<&'a http::Request<T>> for WebRequest {
+    fn from(req: &'a http::Request<T>) -> Self {
+        WebRequest {
+            version: req.version(),
+            method: req.method().clone(),
+            uri: req.uri().clone(),
+            headers: req.headers().clone(),
+            __non_exhaustive: (),
         }
     }
 }

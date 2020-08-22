@@ -2,6 +2,7 @@
 
 - Rename `Daemon` as `ApplicationGuard` and make it deref to `Application`
 - Split `Transaction` into `Transaction` and `TransactionGuard`
+- Add `WebRequest` for `start_web_transaction` argument
 
 ## 0.1.3
 

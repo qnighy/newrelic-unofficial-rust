@@ -13,7 +13,7 @@ use crate::collector::RpmError;
 pub use crate::config::Config;
 use crate::harvest::Harvest;
 use crate::sync_util::Shutdown;
-pub use crate::transaction::{Transaction, TransactionGuard};
+pub use crate::transaction::{Transaction, TransactionGuard, WebRequest};
 
 mod apdex;
 mod app_run;
@@ -99,18 +99,12 @@ impl Application {
         Transaction::new(&self.inner, name, None)
     }
 
-    pub fn start_web_transaction<T>(
+    pub fn start_web_transaction<T: Into<WebRequest>>(
         &self,
         name: &str,
-        request: &http::Request<T>,
+        request: T,
     ) -> TransactionGuard {
-        let mut parts = http::Request::new(()).into_parts().0;
-        parts.method = request.method().clone();
-        parts.uri = request.uri().clone();
-        parts.version = request.version();
-        parts.headers = request.headers().clone();
-        let request = http::Request::from_parts(parts, ());
-        Transaction::new(&self.inner, name, Some(request))
+        Transaction::new(&self.inner, name, Some(request.into()))
     }
 
     pub fn shutdown(&self) {
