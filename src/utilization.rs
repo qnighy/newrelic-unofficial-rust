@@ -267,7 +267,7 @@ fn find_docker_id(s: &str) -> Option<&str> {
     let mut start = 0;
     for i in 0..s.len() {
         let byte = s.as_bytes()[i];
-        if b'0' <= byte && byte <= b'9' || b'a' <= byte && byte <= b'f' {
+        if (b'0'..=b'9').contains(&byte) || (b'a'..=b'f').contains(&byte) {
             // continue
         } else if i - start >= DOCKER_ID_LENGTH {
             return Some(&s[start..i]);

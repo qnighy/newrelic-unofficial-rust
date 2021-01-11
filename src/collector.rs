@@ -43,10 +43,8 @@ impl RpmError {
     pub(crate) fn is_disconnect(&self) -> bool {
         if let RpmError::StatusError { status, .. } = self {
             *status == 410
-        } else if let RpmError::Shutdown(..) = self {
-            true
         } else {
-            false
+            matches!(self, RpmError::Shutdown(..))
         }
     }
 

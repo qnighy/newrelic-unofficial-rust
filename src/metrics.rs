@@ -82,7 +82,7 @@ impl MetricTable {
     pub(crate) fn payload(&self, run_id: &AgentRunId) -> CollectorPayload {
         let duration = Instant::now()
             .checked_duration_since(self.start)
-            .unwrap_or(Duration::from_secs(0));
+            .unwrap_or_else(|| Duration::from_secs(0));
         let end = SystemTime::now();
         let start = end - duration;
         CollectorPayload {

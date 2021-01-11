@@ -99,7 +99,7 @@ impl TransactionInner {
             let name = self.final_name();
             let duration = Instant::now()
                 .checked_duration_since(self.start)
-                .unwrap_or(Duration::from_secs(0));
+                .unwrap_or_else(|| Duration::from_secs(0));
             let end = SystemTime::now();
             let start = end - duration;
             let start_from_unix = start.duration_since(UNIX_EPOCH).unwrap_or_default();
