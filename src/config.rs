@@ -59,7 +59,7 @@ impl Config {
     }
 
     pub fn validate(&self) -> Result<(), ConfigError> {
-        #[allow(clippy::collapsible_if)]
+        #[allow(clippy::collapsible_if, clippy::collapsible_else_if)]
         if self.enabled {
             if self.license.len() != LICENSE_LENGTH {
                 return Err(ConfigError::LicenseLength);
